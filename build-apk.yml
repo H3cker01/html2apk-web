@@ -1,0 +1,76 @@
+name: Build APK
+
+on:
+  workflow_dispatch:
+    inputs:
+      html_content:
+        description: 'Base64-encoded HTML content'
+        required: true
+      app_name:
+        description: 'App name'
+        required: true
+        default: 'MyApp'
+      package_name:
+        description: 'Package name (e.g. com.example.myapp)'
+        required: true
+        default: 'com.example.myapp'
+      run_id_token:
+        description: 'Unique token to identify this build'
+        required: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install build tools
+        run: |
+          sdkmanager "build-tools;34.0.0" "platforms;android-34"
+
+      - name: Decode HTML file
+        run: |
+          mkdir -p build_workspace
+          echo "${{ github.event.inputs.html_content }}" | base64 -d > build_workspace/index.html
+          echo "HTML decoded successfully"
+
+      - name: Download html2apk builder script
+        run: |
+          cp builder/build.py build_workspace/build.py
+
+      - name: Decode keystore
+        run: |
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > build_workspace/release.keystore
+
+      - name: Run html2apk build
+        env:
+          APP_NAME: ${{ github.event.inputs.app_name }}
+          PACKAGE_NAME: ${{ github.event.inputs.package_name }}
+          BUILD_TOOLS: ${{ env.ANDROID_SDK_ROOT }}/build-tools/34.0.0
+          PLATFORM_JAR: ${{ env.ANDROID_SDK_ROOT }}/platforms/android-34/android.jar
+          KEYSTORE_PATH: release.keystore
+          KEYSTORE_PASS: ${{ secrets.KEYSTORE_PASS }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASS: ${{ secrets.KEY_PASS }}
+        run: |
+          cd build_workspace
+          python build.py
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release-${{ github.event.inputs.run_id_token }}
+          path: build_workspace/output/*.apk
+          retention-days: 1
