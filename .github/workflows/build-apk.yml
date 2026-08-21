@@ -75,6 +75,9 @@ jobs:
         run: |
           echo "${{ github.event.inputs.ks_base64 }}" | base64 -d > build_workspace/upload.keystore
 
+      - name: Install Python deps
+        run: pip install Pillow --break-system-packages
+
       - name: Copy builder
         run: cp builder/build.py build_workspace/build.py
 
