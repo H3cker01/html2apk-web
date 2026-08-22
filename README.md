@@ -1,51 +1,28 @@
 # html2apk-web
 
-Convert any HTML file into a signed Android APK — right from the browser.
+Convert any HTML file into a signed Android APK — right from your browser. No Android Studio, no local setup required.
 
-**Stack:** Next.js (Vercel) → GitHub Actions (build) → APK download
+## Features
 
----
+- Upload your HTML file and get a ready-to-install APK
+- Custom app name, package name, and icon support
+- Multiple signing modes
+- Progress tracking during build
 
-## Setup
+## Live Demo
 
-### 1. GitHub
+[html2apk-web-three.vercel.app](https://html2apk-web-three.vercel.app)
 
-- Push this repo to GitHub (e.g. `Hecker01/html2apk-web`)
-- Create a **Personal Access Token** with `repo` + `workflow` scopes
-  - GitHub → Settings → Developer Settings → Personal access tokens → Fine-grained
+## Tech Stack
 
-### 2. Vercel
+- **Frontend/API:** Next.js on Vercel
+- **Build engine:** GitHub Actions (Android SDK, aapt2, d8, zipalign, apksigner)
 
-- Import the repo into Vercel
-- Add these **Environment Variables** in Vercel project settings:
+## Contributing
 
-| Key | Value |
-|-----|-------|
-| `GH_TOKEN` | Your GitHub PAT |
-| `REPO_OWNER` | `Hecker01` |
-| `REPO_NAME` | `html2apk-web` |
+Pull requests are welcome. For major changes, open an issue first.
 
-### 3. Deploy
+## License
 
-Push to `main` — Vercel auto-deploys.
+MIT
 
----
-
-## How it works
-
-1. User uploads HTML + fills app name/package name
-2. Vercel `/api/build` triggers `build-apk.yml` via GitHub Actions `workflow_dispatch`
-3. GitHub Actions: installs Android SDK → runs `builder/build.py` → uploads APK as artifact
-4. Vercel `/api/status` polls the run until complete
-5. Vercel `/api/download` proxies the artifact zip to the user
-
----
-
-## Local dev
-
-```bash
-cp .env.local.example .env.local
-# fill in .env.local
-npm install
-npm run dev
-```
