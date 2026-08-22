@@ -40,6 +40,7 @@ manifest.write_text(textwrap.dedent(f"""\
         <uses-sdk android:minSdkVersion="21" android:targetSdkVersion="34"/>
         <uses-permission android:name="android.permission.INTERNET"/>
         <application android:label="{APP_NAME}" android:icon="@mipmap/ic_launcher"
+            android:theme="@android:style/Theme.NoTitleBar.Fullscreen"
             android:allowBackup="true" android:supportsRtl="true">
             <activity android:name=".MainActivity" android:exported="true"
                 android:configChanges="orientation|screenSize|keyboardHidden">
@@ -105,6 +106,8 @@ html_escaped = (html_content
     public class MainActivity extends Activity {{
         @Override protected void onCreate(Bundle s) {{
             super.onCreate(s);
+            // Hide title bar
+            if (getActionBar() != null) getActionBar().hide();
             getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN,WindowManager.LayoutParams.FLAG_FULLSCREEN);
             WebView wv = new WebView(this); setContentView(wv);
             WebSettings ws = wv.getSettings();
