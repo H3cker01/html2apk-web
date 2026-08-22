@@ -309,21 +309,20 @@ export default function Home() {
             ].map(p => {
               const active = permissions.includes(p.id);
               const toggle = () => {
-                if (p.id === 'internet') return; // always required
                 setPermissions(prev => active ? prev.filter(x => x !== p.id) : [...prev, p.id]);
               };
               return (
                 <div key={p.id} className={`perm-item ${active?'active':''}`} onClick={toggle}>
                   <div className="perm-check">{active && <span style={{color:'#fff',fontSize:10}}>✓</span>}</div>
                   <div>
-                    <div className="perm-label">{p.label}{p.id==='internet'?' 🔒':''}</div>
+                    <div className="perm-label">{p.label}</div>
                     <div className="perm-desc">{p.desc}</div>
                   </div>
                 </div>
               );
             })}
           </div>
-          <p style={{fontSize:11,color:'var(--muted)',fontFamily:'var(--mono)',marginTop:12}}>🔒 Internet is always required.</p>
+          <p style={{fontSize:11,color:'var(--muted)',fontFamily:'var(--mono)',marginTop:12}}>Only add permissions your app actually uses.</p>
         </div>
 
         {/* 05 Signing */}
