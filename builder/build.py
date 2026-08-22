@@ -6,11 +6,12 @@ APP_NAME     = os.environ.get("APP_NAME", "MyApp")
 PACKAGE_NAME = os.environ.get("PACKAGE_NAME", "com.example.myapp")
 BUILD_TOOLS  = Path(os.environ.get("BUILD_TOOLS", ""))
 PLATFORM_JAR = Path(os.environ.get("PLATFORM_JAR", ""))
-SIGNING      = os.environ.get("SIGNING", "debug")   # unsigned|debug|generate|upload
-BUILD_TYPE   = os.environ.get("BUILD_TYPE", "apk")  # apk|aab
+SIGNING      = os.environ.get("SIGNING", "debug")
+BUILD_TYPE   = os.environ.get("BUILD_TYPE", "apk")
 KS_ALIAS     = os.environ.get("KS_ALIAS", "mykey")
 KS_PASS      = os.environ.get("KS_PASS", "")
 KS_KEY_PASS  = os.environ.get("KS_KEY_PASS", "")
+PERMISSIONS  = os.environ.get("PERMISSIONS", "").split(",")  # comma-separated list
 
 AAPT2     = BUILD_TOOLS / "aapt2"
 D8        = BUILD_TOOLS / "d8"
@@ -32,13 +33,50 @@ def run(cmd):
     return r
 
 # ── 1. Manifest ───────────────────────────────────────────────────────────────
+PERMISSION_MAP = {
+    "internet":             "android.permission.INTERNET",
+    "camera":               "android.permission.CAMERA",
+    "microphone":           "android.permission.RECORD_AUDIO",
+    "storage_read":         "android.permission.READ_EXTERNAL_STORAGE",
+    "storage_write":        "android.permission.WRITE_EXTERNAL_STORAGE",
+    "location_fine":        "android.permission.ACCESS_FINE_LOCATION",
+    "location_coarse":      "android.permission.ACCESS_COARSE_LOCATION",
+    "contacts_read":        "android.permission.READ_CONTACTS",
+    "contacts_write":       "android.permission.WRITE_CONTACTS",
+    "phone_state":          "android.permission.READ_PHONE_STATE",
+    "bluetooth":            "android.permission.BLUETOOTH",
+    "bluetooth_connect":    "android.permission.BLUETOOTH_CONNECT",
+    "notifications":        "android.permission.POST_NOTIFICATIONS",
+    "vibrate":              "android.permission.VIBRATE",
+    "nfc":                  "android.permission.NFC",
+    "biometric":            "android.permission.USE_BIOMETRIC",
+}
+
+# Always include INTERNET
+perms_to_add = {"internet"}
+for p in PERMISSIONS:
+    p = p.strip()
+    if p in PERMISSION_MAP:
+        perms_to_add.add(p)
+
+perm_xml = "\n    ".join(
+    f'<uses-permission android:name="{PERMISSION_MAP[p]}"/>'
+    for p in perms_to_add
+)
+
+# Camera also needs features declared
+feature_xml = ""
+if "camera" in perms_to_add:
+    feature_xml = '<uses-feature android:name="android.hardware.camera" android:required="false"/>'
+
 manifest = WORK_DIR / "AndroidManifest.xml"
 manifest.write_text(textwrap.dedent(f"""\
     <?xml version="1.0" encoding="utf-8"?>
     <manifest xmlns:android="http://schemas.android.com/apk/res/android"
         package="{PACKAGE_NAME}" android:versionCode="1" android:versionName="1.0">
         <uses-sdk android:minSdkVersion="21" android:targetSdkVersion="34"/>
-        <uses-permission android:name="android.permission.INTERNET"/>
+        {perm_xml}
+        {feature_xml}
         <application android:label="{APP_NAME}" android:icon="@mipmap/ic_launcher"
             android:theme="@android:style/Theme.NoTitleBar.Fullscreen"
             android:allowBackup="true" android:supportsRtl="true">
