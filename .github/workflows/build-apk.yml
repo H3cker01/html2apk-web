@@ -22,6 +22,10 @@ on:
         description: 'apk | aab'
         required: true
         default: 'apk'
+      permissions:
+        description: 'Comma-separated permissions e.g. camera,microphone,location_fine'
+        required: false
+        default: ''
       signing:
         description: 'unsigned | debug | generate | upload'
         required: true
@@ -98,6 +102,7 @@ jobs:
           BUILD_TOOLS:  ${{ env.ANDROID_SDK_ROOT }}/build-tools/34.0.0
           PLATFORM_JAR: ${{ env.ANDROID_SDK_ROOT }}/platforms/android-34/android.jar
           BUILD_TYPE:   ${{ github.event.inputs.build_type }}
+          PERMISSIONS:  ${{ github.event.inputs.permissions }}
           SIGNING:      ${{ github.event.inputs.signing }}
           KS_ALIAS:     ${{ github.event.inputs.ks_alias }}
           KS_PASS:      ${{ github.event.inputs.ks_pass }}
