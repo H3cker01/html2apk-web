@@ -12,7 +12,8 @@ export default function Home() {
   const [iconFile, setIconFile]       = useState(null);
   const [iconPreview, setIconPreview] = useState(null);
   const [buildType, setBuildType]     = useState('apk');
-  const [signing, setSigning]         = useState('unsigned'); // unsigned | debug | generate | upload
+  const [permissions, setPermissions] = useState(['internet']);
+  const [signing, setSigning]         = useState('debug'); // unsigned | debug | generate | upload
   const [ksAlias, setKsAlias]         = useState('mykey');
   const [ksPass, setKsPass]           = useState('');
   const [ksKeyPass, setKsKeyPass]     = useState('');
@@ -81,6 +82,7 @@ export default function Home() {
         packageName: pkgName,
         iconBase64,
         buildType,
+        permissions,
         signing,
         // generate keystore fields
         ksAlias:    signing === 'generate' ? ksAlias    : undefined,
@@ -182,7 +184,14 @@ export default function Home() {
         .icon-preview:hover{border-color:var(--accent)}
         .icon-preview img{width:100%;height:100%;object-fit:cover}
         .icon-hint{color:var(--muted);font-size:12px;font-family:var(--mono);line-height:1.6}
-        .signing-options{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px}
+        .perm-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+        .perm-item{display:flex;align-items:center;gap:10px;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 12px;cursor:pointer;transition:border-color .15s}
+        .perm-item:hover{border-color:var(--accent)}
+        .perm-item.active{border-color:var(--accent);background:rgba(124,106,247,.08)}
+        .perm-check{width:16px;height:16px;border-radius:4px;border:1px solid var(--border);display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .15s}
+        .perm-item.active .perm-check{background:var(--accent);border-color:var(--accent)}
+        .perm-label{font-family:var(--mono);font-size:11px;color:var(--text)}
+        .perm-desc{font-size:10px;color:var(--muted);margin-top:2px}
         .sign-opt{border:1px solid var(--border);border-radius:8px;padding:12px;cursor:pointer;transition:all .15s;text-align:left}
         .sign-opt:hover{border-color:var(--accent)}
         .sign-opt.active{border-color:var(--accent);background:rgba(124,106,247,.08)}
@@ -278,9 +287,48 @@ export default function Home() {
           </p>
         </div>
 
-        {/* 04 Signing */}
+        {/* 04 Permissions */}
         <div className="card">
-          <div className="card-title">04 — Signing</div>
+          <div className="card-title">04 — Permissions</div>
+          <div className="perm-grid">
+            {[
+              { id:'internet',          label:'Internet',         desc:'Network access' },
+              { id:'camera',            label:'Camera',           desc:'Take photos/video' },
+              { id:'microphone',        label:'Microphone',       desc:'Record audio' },
+              { id:'storage_read',      label:'Read Storage',     desc:'Read files' },
+              { id:'storage_write',     label:'Write Storage',    desc:'Save files' },
+              { id:'location_fine',     label:'GPS Location',     desc:'Precise location' },
+              { id:'location_coarse',   label:'Network Location', desc:'Approximate location' },
+              { id:'contacts_read',     label:'Read Contacts',    desc:'Access contacts' },
+              { id:'contacts_write',    label:'Write Contacts',   desc:'Edit contacts' },
+              { id:'notifications',     label:'Notifications',    desc:'Push notifications' },
+              { id:'vibrate',           label:'Vibrate',          desc:'Vibration control' },
+              { id:'nfc',               label:'NFC',              desc:'Near field comms' },
+              { id:'bluetooth',         label:'Bluetooth',        desc:'Bluetooth access' },
+              { id:'biometric',         label:'Biometric',        desc:'Fingerprint/face' },
+            ].map(p => {
+              const active = permissions.includes(p.id);
+              const toggle = () => {
+                if (p.id === 'internet') return; // always required
+                setPermissions(prev => active ? prev.filter(x => x !== p.id) : [...prev, p.id]);
+              };
+              return (
+                <div key={p.id} className={`perm-item ${active?'active':''}`} onClick={toggle}>
+                  <div className="perm-check">{active && <span style={{color:'#fff',fontSize:10}}>✓</span>}</div>
+                  <div>
+                    <div className="perm-label">{p.label}{p.id==='internet'?' 🔒':''}</div>
+                    <div className="perm-desc">{p.desc}</div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <p style={{fontSize:11,color:'var(--muted)',fontFamily:'var(--mono)',marginTop:12}}>🔒 Internet is always required.</p>
+        </div>
+
+        {/* 05 Signing */}
+        <div className="card">
+          <div className="card-title">05 — Signing</div>
           <div className="signing-options">
             {[
               { id:'unsigned', title:'Unsigned',    desc:'No signature. Cannot be installed on most devices.' },
