@@ -148,6 +148,7 @@ html_escaped = (html_content
     import java.util.ArrayList;
     public class MainActivity extends Activity {{
         private WebView wv;
+        private android.webkit.ValueCallback<android.net.Uri[]> fileChooserCallback;
         private static final int PERM_REQ = 1001;
         @Override protected void onCreate(Bundle s) {{
             super.onCreate(s);
@@ -166,8 +167,15 @@ html_escaped = (html_content
             wv.setWebViewClient(new WebViewClient());
             // Grant WebView permission requests (camera, mic, etc)
             wv.setWebChromeClient(new android.webkit.WebChromeClient() {{
+                private android.webkit.ValueCallback<android.net.Uri[]> fileCallback;
                 @Override public void onPermissionRequest(PermissionRequest req) {{ req.grant(req.getResources()); }}
                 @Override public void onGeolocationPermissionsShowPrompt(String origin, GeolocationPermissions.Callback cb) {{ cb.invoke(origin, true, false); }}
+                @Override public boolean onShowFileChooser(WebView v, android.webkit.ValueCallback<android.net.Uri[]> cb, android.webkit.WebChromeClient.FileChooserParams p) {{
+                    fileChooserCallback = cb;
+                    android.content.Intent intent = p.createIntent();
+                    try {{ startActivityForResult(intent, 2001); }} catch (Exception e) {{ fileChooserCallback = null; return false; }}
+                    return true;
+                }}
             }});
             // Blob download listener
             wv.setDownloadListener(new android.webkit.DownloadListener() {{
@@ -214,6 +222,25 @@ html_escaped = (html_content
         }}
         @Override public void onBackPressed() {{
             if (wv != null && wv.canGoBack()) wv.goBack(); else super.onBackPressed();
+        }}
+        @Override protected void onActivityResult(int req, int res, android.content.Intent data) {{
+            if (req == 2001) {{
+                android.webkit.ValueCallback<android.net.Uri[]> cb = fileChooserCallback;
+                fileChooserCallback = null;
+                if (cb != null) {{
+                    android.net.Uri[] results = null;
+                    if (res == RESULT_OK && data != null) {{
+                        String dataStr = data.getDataString();
+                        if (dataStr != null) results = new android.net.Uri[]{{android.net.Uri.parse(dataStr)}};
+                        else if (data.getClipData() != null) {{
+                            int count = data.getClipData().getItemCount();
+                            results = new android.net.Uri[count];
+                            for (int i = 0; i < count; i++) results[i] = data.getClipData().getItemAt(i).getUri();
+                        }}
+                    }}
+                    cb.onReceiveValue(results);
+                }}
+            }}
         }}
     }}
 """), encoding="utf-8")
