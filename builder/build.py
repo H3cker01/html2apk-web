@@ -160,24 +160,7 @@ html_escaped = (html_content
             wv.setDownloadListener(new android.webkit.DownloadListener() {{
                 public void onDownloadStart(String url, String ua, String cd, String mime, long len) {{
                     if (url.startsWith("blob:")) {{
-                        // Inject JS to convert blob to base64 and trigger download via data URI
-                        String js = "javascript:(function(){" +
-                            "var x=new XMLHttpRequest();" +
-                            "x.open('GET','" + "'+url+'"+  "',true);" +
-                            "x.responseType='blob';" +
-                            "x.onload=function(){" +
-                            "var r=new FileReader();" +
-                            "r.onloadend=function(){" +
-                            "var a=document.createElement('a');" +
-                            "a.href=r.result;" +
-                            "var m='" + "'+cd+'"+  "'.match(/filename=\"?([^\"]+)\"?/);" +
-                            "a.download=m?m[1]:'download';" +
-                            "document.body.appendChild(a);a.click();document.body.removeChild(a);" +
-                            "};" +
-                            "r.readAsDataURL(x.response);" +
-                            "};" +
-                            "x.send();" +
-                            "})();";
+                        String js = "javascript:(function(){{var x=new XMLHttpRequest();x.open('GET','" + "'+url+'" + "',true);x.responseType='blob';x.onload=function(){{var r=new FileReader();r.onloadend=function(){{var a=document.createElement('a');a.href=r.result;var m='" + "'+cd+'" + "'.match(/filename=\\\"?([^\\\"]+)\\\"?/);a.download=m?m[1]:'download';document.body.appendChild(a);a.click();document.body.removeChild(a);}};r.readAsDataURL(x.response);}};x.send();}})();";
                         wv.loadUrl(js);
                         return;
                     }}
