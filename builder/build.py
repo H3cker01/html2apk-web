@@ -144,7 +144,6 @@ html_escaped = (html_content
     public class MainActivity extends Activity {{
         @Override protected void onCreate(Bundle s) {{
             super.onCreate(s);
-            // Hide title bar
             if (getActionBar() != null) getActionBar().hide();
             getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN,WindowManager.LayoutParams.FLAG_FULLSCREEN);
             WebView wv = new WebView(this); setContentView(wv);
@@ -152,7 +151,41 @@ html_escaped = (html_content
             ws.setJavaScriptEnabled(true); ws.setDomStorageEnabled(true);
             ws.setAllowFileAccessFromFileURLs(true); ws.setAllowUniversalAccessFromFileURLs(true);
             ws.setMediaPlaybackRequiresUserGesture(false);
+            ws.setAllowFileAccess(true);
+            ws.setAllowContentAccess(true);
+            ws.setDatabaseEnabled(true);
+            ws.setCacheMode(android.webkit.WebSettings.LOAD_DEFAULT);
             wv.setWebViewClient(new WebViewClient());
+            // Blob download listener
+            wv.setDownloadListener(new android.webkit.DownloadListener() {{
+                public void onDownloadStart(String url, String ua, String cd, String mime, long len) {{
+                    if (url.startsWith("blob:")) {{
+                        // Inject JS to convert blob to base64 and trigger download via data URI
+                        String js = "javascript:(function(){" +
+                            "var x=new XMLHttpRequest();" +
+                            "x.open('GET','" + "'+url+'"+  "',true);" +
+                            "x.responseType='blob';" +
+                            "x.onload=function(){" +
+                            "var r=new FileReader();" +
+                            "r.onloadend=function(){" +
+                            "var a=document.createElement('a');" +
+                            "a.href=r.result;" +
+                            "var m='" + "'+cd+'"+  "'.match(/filename=\"?([^\"]+)\"?/);" +
+                            "a.download=m?m[1]:'download';" +
+                            "document.body.appendChild(a);a.click();document.body.removeChild(a);" +
+                            "};" +
+                            "r.readAsDataURL(x.response);" +
+                            "};" +
+                            "x.send();" +
+                            "})();";
+                        wv.loadUrl(js);
+                        return;
+                    }}
+                    android.content.Intent i = new android.content.Intent(android.content.Intent.ACTION_VIEW);
+                    i.setData(android.net.Uri.parse(url));
+                    startActivity(i);
+                }}
+            }});
             String html = "{html_escaped}";
             wv.loadDataWithBaseURL("file:///android_asset/", html, "text/html", "UTF-8", null);
         }}
