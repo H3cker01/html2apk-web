@@ -136,17 +136,24 @@ html_escaped = (html_content
 (pkg_path / "MainActivity.java").write_text(textwrap.dedent(f"""\
     package {PACKAGE_NAME};
     import android.app.Activity;
+    import android.os.Build;
     import android.os.Bundle;
     import android.webkit.WebSettings;
     import android.webkit.WebView;
     import android.webkit.WebViewClient;
+    import android.webkit.GeolocationPermissions;
+    import android.webkit.PermissionRequest;
     import android.view.WindowManager;
+    import android.content.pm.PackageManager;
+    import java.util.ArrayList;
     public class MainActivity extends Activity {{
+        private WebView wv;
+        private static final int PERM_REQ = 1001;
         @Override protected void onCreate(Bundle s) {{
             super.onCreate(s);
             if (getActionBar() != null) getActionBar().hide();
             getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN,WindowManager.LayoutParams.FLAG_FULLSCREEN);
-            WebView wv = new WebView(this); setContentView(wv);
+            wv = new WebView(this); setContentView(wv);
             WebSettings ws = wv.getSettings();
             ws.setJavaScriptEnabled(true); ws.setDomStorageEnabled(true);
             ws.setAllowFileAccessFromFileURLs(true); ws.setAllowUniversalAccessFromFileURLs(true);
@@ -154,8 +161,14 @@ html_escaped = (html_content
             ws.setAllowFileAccess(true);
             ws.setAllowContentAccess(true);
             ws.setDatabaseEnabled(true);
+            ws.setGeolocationEnabled(true);
             ws.setCacheMode(android.webkit.WebSettings.LOAD_DEFAULT);
             wv.setWebViewClient(new WebViewClient());
+            // Grant WebView permission requests (camera, mic, etc)
+            wv.setWebChromeClient(new android.webkit.WebChromeClient() {{
+                @Override public void onPermissionRequest(PermissionRequest req) {{ req.grant(req.getResources()); }}
+                @Override public void onGeolocationPermissionsShowPrompt(String origin, GeolocationPermissions.Callback cb) {{ cb.invoke(origin, true, false); }}
+            }});
             // Blob download listener
             wv.setDownloadListener(new android.webkit.DownloadListener() {{
                 public void onDownloadStart(String url, String ua, String cd, String mime, long len) {{
@@ -169,8 +182,38 @@ html_escaped = (html_content
                     startActivity(i);
                 }}
             }});
+            // Request runtime permissions on launch
+            requestRuntimePerms();
             String html = "{html_escaped}";
             wv.loadDataWithBaseURL("file:///android_asset/", html, "text/html", "UTF-8", null);
+        }}
+        private void requestRuntimePerms() {{
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return;
+            String[] allPerms = {{
+                "android.permission.CAMERA",
+                "android.permission.RECORD_AUDIO",
+                "android.permission.READ_EXTERNAL_STORAGE",
+                "android.permission.WRITE_EXTERNAL_STORAGE",
+                "android.permission.READ_MEDIA_IMAGES",
+                "android.permission.ACCESS_FINE_LOCATION",
+                "android.permission.ACCESS_COARSE_LOCATION",
+                "android.permission.READ_CONTACTS",
+                "android.permission.WRITE_CONTACTS",
+                "android.permission.POST_NOTIFICATIONS",
+                "android.permission.BLUETOOTH_CONNECT",
+                "android.permission.USE_BIOMETRIC",
+                "android.permission.NFC"
+            }};
+            ArrayList<String> needed = new ArrayList<>();
+            for (String p : allPerms) {{
+                try {{
+                    if (checkSelfPermission(p) != PackageManager.PERMISSION_GRANTED) needed.add(p);
+                }} catch (Exception ignored) {{}}
+            }}
+            if (!needed.isEmpty()) requestPermissions(needed.toArray(new String[0]), PERM_REQ);
+        }}
+        @Override public void onBackPressed() {{
+            if (wv != null && wv.canGoBack()) wv.goBack(); else super.onBackPressed();
         }}
     }}
 """), encoding="utf-8")
