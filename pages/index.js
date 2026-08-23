@@ -290,39 +290,50 @@ export default function Home() {
         {/* 04 Permissions */}
         <div className="card">
           <div className="card-title">04 — Permissions</div>
-          <div className="perm-grid">
-            {[
+          {(() => {
+            const basic = ['internet','camera','storage_read','notifications'];
+            const extra = ['microphone','storage_write','location_fine','location_coarse','contacts_read','contacts_write','vibrate','nfc','bluetooth','biometric'];
+            const all = [
               { id:'internet',          label:'Internet',         desc:'Network access' },
               { id:'camera',            label:'Camera',           desc:'Take photos/video' },
-              { id:'microphone',        label:'Microphone',       desc:'Record audio' },
               { id:'storage_read',      label:'Read Storage',     desc:'Read files' },
+              { id:'notifications',     label:'Notifications',    desc:'Push notifications' },
+              { id:'microphone',        label:'Microphone',       desc:'Record audio' },
               { id:'storage_write',     label:'Write Storage',    desc:'Save files' },
               { id:'location_fine',     label:'GPS Location',     desc:'Precise location' },
-              { id:'location_coarse',   label:'Network Location', desc:'Approximate location' },
+              { id:'location_coarse',   label:'Network Location', desc:'Approx location' },
               { id:'contacts_read',     label:'Read Contacts',    desc:'Access contacts' },
               { id:'contacts_write',    label:'Write Contacts',   desc:'Edit contacts' },
-              { id:'notifications',     label:'Notifications',    desc:'Push notifications' },
               { id:'vibrate',           label:'Vibrate',          desc:'Vibration control' },
               { id:'nfc',               label:'NFC',              desc:'Near field comms' },
               { id:'bluetooth',         label:'Bluetooth',        desc:'Bluetooth access' },
               { id:'biometric',         label:'Biometric',        desc:'Fingerprint/face' },
-            ].map(p => {
-              const active = permissions.includes(p.id);
-              const toggle = () => {
-                setPermissions(prev => active ? prev.filter(x => x !== p.id) : [...prev, p.id]);
-              };
-              return (
-                <div key={p.id} className={`perm-item ${active?'active':''}`} onClick={toggle}>
-                  <div className="perm-check">{active && <span style={{color:'#fff',fontSize:10}}>✓</span>}</div>
-                  <div>
-                    <div className="perm-label">{p.label}</div>
-                    <div className="perm-desc">{p.desc}</div>
-                  </div>
+            ];
+            const [expanded, setExpanded] = useState(false);
+            const visible = expanded ? all : all.filter(p => basic.includes(p.id));
+            return (
+              <>
+                <div className="perm-grid">
+                  {visible.map(p => {
+                    const active = permissions.includes(p.id);
+                    return (
+                      <div key={p.id} className={`perm-item ${active?'active':''}`}
+                        onClick={()=>setPermissions(prev=>active?prev.filter(x=>x!==p.id):[...prev,p.id])}>
+                        <div className="perm-check">{active&&<span style={{color:'#fff',fontSize:10}}>✓</span>}</div>
+                        <div>
+                          <div className="perm-label">{p.label}</div>
+                          <div className="perm-desc">{p.desc}</div>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
-              );
-            })}
-          </div>
-          <p style={{fontSize:11,color:'var(--muted)',fontFamily:'var(--mono)',marginTop:12}}>Only add permissions your app actually uses.</p>
+                <button onClick={()=>setExpanded(e=>!e)} style={{marginTop:10,background:'none',border:'none',color:'var(--accent)',fontFamily:'var(--mono)',fontSize:12,cursor:'pointer',padding:0}}>
+                  {expanded ? '▲ Show less' : '▼ Show more permissions'}
+                </button>
+              </>
+            );
+          })()}
         </div>
 
         {/* 05 Signing */}
