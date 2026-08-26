@@ -1,7 +1,51 @@
 export const config = { api: { bodyParser: { sizeLimit: '10mb' } } };
 
+// ── In-memory rate limiter (per Vercel serverless instance) ──────────────────
+// Limits: 3 builds per IP per hour, 1 concurrent build per IP
+const rateLimitMap = new Map(); // ip -> { count, windowStart, building }
+
+function checkRateLimit(ip) {
+  const now = Date.now();
+  const WINDOW = 60 * 60 * 1000; // 1 hour
+  const MAX    = 3;               // max builds per window
+
+  let entry = rateLimitMap.get(ip);
+  if (!entry || now - entry.windowStart > WINDOW) {
+    entry = { count: 0, windowStart: now, building: false };
+  }
+
+  if (entry.building) {
+    return { allowed: false, reason: 'You already have a build in progress. Please wait for it to finish.' };
+  }
+  if (entry.count >= MAX) {
+    const resetIn = Math.ceil((WINDOW - (now - entry.windowStart)) / 60000);
+    return { allowed: false, reason: `Rate limit reached (${MAX} builds/hour). Resets in ~${resetIn} min.` };
+  }
+
+  entry.count++;
+  entry.building = true;
+  rateLimitMap.set(ip, entry);
+  return { allowed: true };
+}
+
+function releaseBuild(ip) {
+  const entry = rateLimitMap.get(ip);
+  if (entry) { entry.building = false; rateLimitMap.set(ip, entry); }
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+
+  // Get real IP (Vercel sets x-forwarded-for)
+  const ip = (req.headers['x-forwarded-for'] || req.socket?.remoteAddress || 'unknown')
+    .split(',')[0].trim();
+
+  const limit = checkRateLimit(ip);
+  if (!limit.allowed) {
+    return res.status(429).json({ error: limit.reason });
+  }
 
   const {
     html, appName = 'MyApp', packageName = 'com.example.myapp',
@@ -13,17 +57,19 @@ export default async function handler(req, res) {
     ksBase64, ksFilePass, ksFileAlias, ksFileKeyPass,
   } = req.body;
 
-  if (!html) return res.status(400).json({ error: 'html is required' });
-  if (!/^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+$/.test(packageName))
-    return res.status(400).json({ error: 'Invalid package name' });
+  if (!html) { releaseBuild(ip); return res.status(400).json({ error: 'html is required' }); }
+  if (!/^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+$/.test(packageName)) {
+    releaseBuild(ip); return res.status(400).json({ error: 'Invalid package name' });
+  }
 
-  const token    = crypto.randomUUID();
-  const GH_TOKEN = process.env.GH_TOKEN;
+  const token      = crypto.randomUUID();
+  const GH_TOKEN   = process.env.GH_TOKEN;
   const REPO_OWNER = process.env.REPO_OWNER;
   const REPO_NAME  = process.env.REPO_NAME;
 
-  if (!GH_TOKEN || !REPO_OWNER || !REPO_NAME)
-    return res.status(500).json({ error: 'Server misconfigured' });
+  if (!GH_TOKEN || !REPO_OWNER || !REPO_NAME) {
+    releaseBuild(ip); return res.status(500).json({ error: 'Server misconfigured' });
+  }
 
   const ghHeaders = {
     Authorization: `Bearer ${GH_TOKEN}`,
@@ -32,68 +78,79 @@ export default async function handler(req, res) {
     'Content-Type': 'application/json',
   };
 
-  // Upload HTML to Gist
-  const gistFiles = { 'index.html': { content: html } };
-  if (iconBase64) gistFiles['icon.png.b64'] = { content: iconBase64 };
+  try {
+    // Upload HTML to Gist
+    const gistFiles = { 'index.html': { content: html } };
+    if (iconBase64) gistFiles['icon.png.b64'] = { content: iconBase64 };
 
-  const gistRes = await fetch('https://api.github.com/gists', {
-    method: 'POST',
-    headers: ghHeaders,
-    body: JSON.stringify({ description: `html2apk-${token}`, public: false, files: gistFiles }),
-  });
+    const gistRes = await fetch('https://api.github.com/gists', {
+      method: 'POST',
+      headers: ghHeaders,
+      body: JSON.stringify({ description: `html2apk-${token}`, public: false, files: gistFiles }),
+    });
 
-  if (!gistRes.ok) {
-    const err = await gistRes.text();
-    console.error('Gist upload error:', err);
-    return res.status(500).json({ error: 'Failed to upload HTML', detail: err });
-  }
+    if (!gistRes.ok) {
+      const err = await gistRes.text();
+      releaseBuild(ip);
+      return res.status(500).json({ error: 'Failed to upload HTML', detail: err });
+    }
 
-  const gistData = await gistRes.json();
-  const htmlUrl  = gistData.files['index.html'].raw_url;
-  const iconUrl  = iconBase64 ? gistData.files['icon.png.b64'].raw_url : '';
+    const gistData = await gistRes.json();
+    const htmlUrl  = gistData.files['index.html'].raw_url;
+    const iconUrl  = iconBase64 ? gistData.files['icon.png.b64'].raw_url : '';
 
-  // Build workflow inputs
-  const inputs = {
-    html_url:     htmlUrl,
-    icon_url:     iconUrl,
-    app_name:     appName,
-    package_name: packageName,
-    run_id_token: token,
-    build_type:   buildType,
-    permissions:  Array.isArray(permissions) ? permissions.join(',') : '',
-    signing,
-    ks_alias:     signing === 'generate' ? (ksAlias || 'mykey') : (signing === 'upload' ? ksFileAlias : ''),
-    ks_pass:      signing === 'generate' ? ksPass    : (signing === 'upload' ? ksFilePass    : ''),
-    ks_key_pass:  signing === 'generate' ? ksKeyPass : (signing === 'upload' ? ksFileKeyPass : ''),
-    ks_base64:    signing === 'upload'   ? ksBase64  : '',
-  };
+    const inputs = {
+      html_url:     htmlUrl,
+      icon_url:     iconUrl,
+      app_name:     appName,
+      package_name: packageName,
+      run_id_token: token,
+      build_type:   buildType,
+      permissions:  Array.isArray(permissions) ? permissions.join(',') : '',
+      signing,
+      ks_alias:    signing === 'generate' ? (ksAlias || 'mykey') : (signing === 'upload' ? ksFileAlias : ''),
+      ks_pass:     signing === 'generate' ? ksPass    : (signing === 'upload' ? ksFilePass    : ''),
+      ks_key_pass: signing === 'generate' ? ksKeyPass : (signing === 'upload' ? ksFileKeyPass : ''),
+      ks_base64:   signing === 'upload'   ? ksBase64  : '',
+    };
 
-  const triggerRes = await fetch(
-    `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/actions/workflows/build-apk.yml/dispatches`,
-    { method: 'POST', headers: ghHeaders, body: JSON.stringify({ ref: 'main', inputs }) }
-  );
-
-  if (!triggerRes.ok) {
-    const err = await triggerRes.text();
-    console.error('GitHub trigger error:', err);
-    return res.status(500).json({ error: 'Failed to trigger build', detail: err });
-  }
-
-  // Find run
-  let run = null;
-  for (let i = 0; i < 10; i++) {
-    await new Promise(r => setTimeout(r, 3000));
-    const runsRes  = await fetch(
-      `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/actions/workflows/build-apk.yml/runs?per_page=10`,
-      { headers: ghHeaders }
+    const triggerRes = await fetch(
+      `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/actions/workflows/build-apk.yml/dispatches`,
+      { method: 'POST', headers: ghHeaders, body: JSON.stringify({ ref: 'main', inputs }) }
     );
-    const runsData = await runsRes.json();
-    run = runsData.workflow_runs?.find(r =>
-      r.status !== 'completed' && (Date.now() - new Date(r.created_at).getTime()) < 120_000
-    );
-    if (run) break;
-  }
 
-  if (!run) return res.status(500).json({ error: 'Could not find workflow run — try again' });
-  return res.status(200).json({ runId: run.id, token });
+    if (!triggerRes.ok) {
+      const err = await triggerRes.text();
+      releaseBuild(ip);
+      return res.status(500).json({ error: 'Failed to trigger build', detail: err });
+    }
+
+    // Find run
+    let run = null;
+    for (let i = 0; i < 10; i++) {
+      await new Promise(r => setTimeout(r, 3000));
+      const runsRes  = await fetch(
+        `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/actions/workflows/build-apk.yml/runs?per_page=10`,
+        { headers: ghHeaders }
+      );
+      const runsData = await runsRes.json();
+      run = runsData.workflow_runs?.find(r =>
+        r.status !== 'completed' && (Date.now() - new Date(r.created_at).getTime()) < 120_000
+      );
+      if (run) break;
+    }
+
+    if (!run) {
+      releaseBuild(ip);
+      return res.status(500).json({ error: 'Could not find workflow run — try again' });
+    }
+
+    // Release the "building" lock after run is found (polling handles the rest)
+    releaseBuild(ip);
+    return res.status(200).json({ runId: run.id, token });
+
+  } catch (e) {
+    releaseBuild(ip);
+    return res.status(500).json({ error: e.message || 'Internal error' });
+  }
 }
