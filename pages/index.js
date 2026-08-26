@@ -342,7 +342,8 @@ export default function Home() {
           History
           {history.length > 0 && <span className="history-badge">{history.length}</span>}
         </button>
-        <div className="badge">by Hecker01</div>
+        
+        <div className="badge">by H3cker01</div>
         <h1>html<span>2</span>apk</h1>
         <p className="subtitle">Drop your HTML file. Get a signed Android APK back. No setup, no Android Studio.</p>
       </div>
@@ -507,7 +508,7 @@ export default function Home() {
         )}
 
       </div>
-      <div className="footer"><span>html2apk</span> — built by Hecker01</div>
+      <div className="footer"><span>html2apk</span> — built by H3cker01</div>
     </>
   );
 }
