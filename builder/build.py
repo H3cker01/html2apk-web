@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import os, subprocess, shutil, textwrap, zipfile
+import os, subprocess, shutil, textwrap, zipfile, json, base64, re
 from pathlib import Path
 
 APP_NAME     = os.environ.get("APP_NAME", "MyApp")
@@ -12,6 +12,7 @@ KS_ALIAS     = os.environ.get("KS_ALIAS", "mykey")
 KS_PASS      = os.environ.get("KS_PASS", "")
 KS_KEY_PASS  = os.environ.get("KS_KEY_PASS", "")
 PERMISSIONS  = os.environ.get("PERMISSIONS", "").split(",")  # comma-separated list
+ADDITIONAL_FILES_JSON = os.environ.get("ADDITIONAL_FILES", "[]")  # JSON [{name,base64}]
 
 AAPT2     = BUILD_TOOLS / "aapt2"
 D8        = BUILD_TOOLS / "d8"
@@ -124,11 +125,53 @@ if not ICON_FILE or not ICON_FILE.exists():
         draw.ellipse([size//4, size//4, 3*size//4, 3*size//4], fill=(255, 255, 255, 200))
         img.save(WORK_DIR / "res" / folder / "ic_launcher.png")
 
-# ── 3. MainActivity ───────────────────────────────────────────────────────────
+# ── 3. Additional files → assets + rewrite HTML src/href ─────────────────────
+ASSETS_DIR = WORK_DIR / "assets"
+ASSETS_DIR.mkdir(exist_ok=True)
+
+# Decode additional files and place them in assets/
+additional_files = []
+try:
+    additional_files = json.loads(ADDITIONAL_FILES_JSON) or []
+except Exception as e:
+    print(f"⚠️  Could not parse ADDITIONAL_FILES: {e}")
+
+additional_names = set()
+for af in additional_files:
+    fname = Path(af["name"]).name  # strip any directory component
+    dest  = ASSETS_DIR / fname
+    dest.write_bytes(base64.b64decode(af["base64"]))
+    additional_names.add(fname)
+    print(f"📎 Additional file: {fname} → assets/{fname}")
+
+# Rewrite HTML src/href only for filenames that were actually uploaded
+html_content = HTML_FILE.read_text(encoding="utf-8")
+
+if additional_names:
+    def rewrite_attr(m):
+        attr  = m.group(1)   # src= or href=
+        quote = m.group(2)   # " or '
+        val   = m.group(3)   # the path value
+        fname = Path(val).name
+        if fname in additional_names:
+            new_val = f"file:///android_asset/{fname}"
+            print(f"  ↳ Rewrote {attr}{quote}{val}{quote} → {new_val}")
+            return f'{attr}{quote}{new_val}{quote}'
+        return m.group(0)    # no match — leave untouched
+
+    html_content = re.sub(
+        r'(src=|href=)(["\'])([^"\'#?]+)\2',
+        rewrite_attr,
+        html_content
+    )
+    print("✅ HTML src/href rewriting done")
+else:
+    print("ℹ️  No additional files — HTML unchanged")
+
+# ── 4. MainActivity ───────────────────────────────────────────────────────────
 pkg_path = WORK_DIR / "java" / Path(*PACKAGE_NAME.split("."))
 pkg_path.mkdir(parents=True, exist_ok=True)
 
-html_content = HTML_FILE.read_text(encoding="utf-8")
 html_escaped = (html_content
     .replace("\\", "\\\\").replace('"', '\\"')
     .replace("\n", "\\n\" +\n            \"").replace("\r", ""))
@@ -323,6 +366,15 @@ if BUILD_TYPE == "aab":
     dex_dest.mkdir(exist_ok=True)
     shutil.copy(dex_dir / "classes.dex", dex_dest / "classes.dex")
 
+    # Add additional assets
+    if any(ASSETS_DIR.iterdir()):
+        aab_assets = base_dir / "assets"
+        aab_assets.mkdir(exist_ok=True)
+        for af in ASSETS_DIR.iterdir():
+            if af.is_file():
+                shutil.copy(af, aab_assets / af.name)
+                print(f"📦 Packed asset (AAB): assets/{af.name}")
+
     # Create base.zip (module zip)
     base_zip = WORK_DIR / "base.zip"
     with zipfile.ZipFile(base_zip, 'w', zipfile.ZIP_DEFLATED) as z:
@@ -356,6 +408,11 @@ else:
     shutil.copy(linked, unaligned)
     with zipfile.ZipFile(unaligned, "a") as z:
         z.write(dex_dir / "classes.dex", "classes.dex")
+        # Add additional assets alongside index.html
+        for af in ASSETS_DIR.iterdir():
+            if af.is_file():
+                z.write(af, f"assets/{af.name}")
+                print(f"📦 Packed asset: assets/{af.name}")
 
     aligned = WORK_DIR / "aligned.apk"
     run([ZIPALIGN, "-f", "-p", "4", unaligned, aligned])
