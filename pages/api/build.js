@@ -1,13 +1,12 @@
 export const config = { api: { bodyParser: { sizeLimit: '10mb' } } };
 
 // ── In-memory rate limiter (per Vercel serverless instance) ──────────────────
-// Limits: 3 builds per IP per hour, 1 concurrent build per IP
 const rateLimitMap = new Map(); // ip -> { count, windowStart, building }
 
 function checkRateLimit(ip) {
   const now = Date.now();
-  const WINDOW = 60 * 60 * 1000; // 1 hour
-  const MAX    = 3;               // max builds per window
+  const WINDOW = 60 * 60 * 1000;
+  const MAX    = 3;
 
   let entry = rateLimitMap.get(ip);
   if (!entry || now - entry.windowStart > WINDOW) {
@@ -33,19 +32,14 @@ function releaseBuild(ip) {
   if (entry) { entry.building = false; rateLimitMap.set(ip, entry); }
 }
 
-// ────────────────────────────────────────────────────────────────────────────
+// ── Malicious code block map (mirrors scan.js state via internal fetch) ───────
+// We call /api/scan internally before proceeding
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  // Get real IP (Vercel sets x-forwarded-for)
   const ip = (req.headers['x-forwarded-for'] || req.socket?.remoteAddress || 'unknown')
     .split(',')[0].trim();
-
-  const limit = checkRateLimit(ip);
-  if (!limit.allowed) {
-    return res.status(429).json({ error: limit.reason });
-  }
 
   const {
     html, appName = 'MyApp', packageName = 'com.example.myapp',
@@ -57,9 +51,39 @@ export default async function handler(req, res) {
     ksBase64, ksFilePass, ksFileAlias, ksFileKeyPass,
   } = req.body;
 
-  if (!html) { releaseBuild(ip); return res.status(400).json({ error: 'html is required' }); }
+  if (!html) return res.status(400).json({ error: 'html is required' });
   if (!/^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+$/.test(packageName)) {
-    releaseBuild(ip); return res.status(400).json({ error: 'Invalid package name' });
+    return res.status(400).json({ error: 'Invalid package name' });
+  }
+
+  // ── Scan HTML for malicious code BEFORE rate limit / build ──────────────────
+  const baseUrl = process.env.VERCEL_URL
+    ? `https://${process.env.VERCEL_URL}`
+    : 'http://localhost:3000';
+
+  const scanRes = await fetch(`${baseUrl}/api/scan`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-forwarded-for': ip },
+    body: JSON.stringify({ html }),
+  });
+  const scanData = await scanRes.json();
+
+  if (scanData.blocked || scanData.malicious) {
+    return res.status(403).json({
+      malicious: true,
+      error: scanData.error,
+      findings: scanData.findings || [],
+      hours: scanData.hours,
+      offenses: scanData.offenses,
+      blockedUntil: scanData.blockedUntil,
+      remaining: scanData.remaining,
+    });
+  }
+  // ── End scan ─────────────────────────────────────────────────────────────────
+
+  const limit = checkRateLimit(ip);
+  if (!limit.allowed) {
+    return res.status(429).json({ error: limit.reason });
   }
 
   const token      = crypto.randomUUID();
@@ -79,7 +103,6 @@ export default async function handler(req, res) {
   };
 
   try {
-    // Upload HTML to Gist
     const gistFiles = { 'index.html': { content: html } };
     if (iconBase64) gistFiles['icon.png.b64'] = { content: iconBase64 };
 
@@ -125,7 +148,6 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: 'Failed to trigger build', detail: err });
     }
 
-    // Find run
     let run = null;
     for (let i = 0; i < 10; i++) {
       await new Promise(r => setTimeout(r, 3000));
@@ -145,7 +167,6 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: 'Could not find workflow run — try again' });
     }
 
-    // Release the "building" lock after run is found (polling handles the rest)
     releaseBuild(ip);
     return res.status(200).json({ runId: run.id, token });
 
