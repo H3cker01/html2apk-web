@@ -56,14 +56,7 @@ export default function Home() {
   const [history, setHistory]         = useState([]);
   const [showHistory, setShowHistory] = useState(false);
   const [rateLimitMsg, setRateLimitMsg] = useState('');
-  const [adPending, setAdPending]       = useState(false);
-  const [adShown, setAdShown]           = useState(false);
-  const adIndexRef = useRef(0);
 
-  const AD_URLS = [
-    'https://omg10.com/4/11679643',
-    'https://omg10.com/4/11679639',
-  ];
 
   const fileRef = useRef();
   const iconRef = useRef();
@@ -81,46 +74,11 @@ export default function Home() {
     reader.readAsDataURL(file);
   }
 
-  function openAd(onComplete) {
-    const url = AD_URLS[adIndexRef.current % AD_URLS.length];
-    adIndexRef.current += 1;
-    const win = window.open(url, '_blank', 'noopener');
-    // If popup blocked, fall back to same-tab redirect approach
-    if (!win || win.closed || typeof win.closed === 'undefined') {
-      window.open(url, '_blank');
-    }
-    setAdShown(true);
-    // Wait 5s then proceed — gives ad time to register impression
-    setTimeout(() => {
-      setAdPending(false);
-      onComplete();
-    }, 5000);
-  }
 
   function handleBuildClick() {
-    if (adShown) {
-      // Ad already watched this session — go straight to build
-      handleBuild();
-      return;
-    }
-    setAdPending(true);
-    openAd(() => handleBuild());
+    handleBuild();
   }
 
-  function handleDownloadClick(e) {
-    if (adShown) return; // already watched, let href proceed naturally
-    e.preventDefault();
-    setAdPending(true);
-    openAd(() => {
-      // Trigger download after ad
-      const a = document.createElement('a');
-      a.href = dlUrl;
-      a.download = dlName;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-    });
-  }
 
   async function handleBuild() {
     const html = inputMode === 'file' ? await htmlFile?.text() : htmlText;
@@ -343,7 +301,6 @@ export default function Home() {
         .btn-del:hover{border-color:var(--error);color:var(--error)}
         .btn-clear-all{width:100%;padding:10px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--muted);font-family:var(--mono);font-size:12px;cursor:pointer;transition:all .15s;margin-top:4px}
         .btn-clear-all:hover{border-color:var(--error);color:var(--error)}
-        .ad-banner{background:rgba(124,106,247,.12);border:1px solid var(--accent);border-radius:8px;padding:12px 16px;margin-top:12px;font-family:var(--mono);font-size:12px;color:var(--accent);display:flex;align-items:center;gap:8px}
         .footer{text-align:center;padding:24px;color:var(--muted);font-size:12px;font-family:var(--mono);border-top:1px solid var(--border)}
         .footer span{color:var(--accent)}
       `}</style>
@@ -531,14 +488,10 @@ export default function Home() {
         </div>
 
         {/* Build Button */}
-        <button className="btn-build" disabled={stage==='building' || adPending} onClick={handleBuildClick}>
-          {adPending ? '📺 Ad loading — please wait...' : stage==='building' ? '⚙ Building...' : '▶ Build APK'}
+        <button className="btn-build" disabled={stage==='building'} onClick={handleBuildClick}>
+          {stage==='building' ? '⚙ Building...' : '▶ Build APK'}
         </button>
 
-        {/* Ad pending banner */}
-        {adPending && (
-          <div className="ad-banner">📺 Ad opened in a new tab — build starts automatically in 5 seconds…</div>
-        )}
 
         {/* Rate limit warning */}
         {rateLimitMsg && (
@@ -558,12 +511,13 @@ export default function Home() {
           <div className="card" style={{marginTop:16}}>
             <div className="card-title">Build Log</div>
             <div className="terminal">{log.trim()}</div>
-            {dlUrl && <a className="btn-download" href={dlUrl} download={dlName} onClick={handleDownloadClick}>⬇ Download APK (.zip)</a>}
+            {dlUrl && <a className="btn-download" href={dlUrl} download={dlName}>⬇ Download APK (.zip)</a>}
           </div>
         )}
 
       </div>
-      <div className="footer"><span>html2apk</span> — built by H3cker01</div>
+      <div className="footer"><span>html2apk</span> — built by H3cker01 · <a href="/privacy" style={{color:"var(--accent)",textDecoration:"none"}}>Privacy Policy</a></div>
     </>
   );
 }
+
