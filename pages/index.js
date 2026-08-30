@@ -86,6 +86,7 @@ export default function Home() {
     if (!appName.trim()) return alert('Enter an app name.');
     if (!pkgName.trim()) return alert('Enter a package name.');
     if (signing === 'generate' && (!ksPass || !ksKeyPass)) return alert('Enter keystore and key passwords.');
+    if (signing === 'generate' && (ksPass.length < 6 || ksKeyPass.length < 6)) return alert('Keystore and key passwords must be at least 6 characters.');
     if (signing === 'upload' && (!ksFile || !ksFilePass || !ksFileAlias || !ksFileKeyPass)) return alert('Fill all keystore upload fields.');
 
     setStage('building');
@@ -520,4 +521,5 @@ export default function Home() {
     </>
   );
 }
+
 
