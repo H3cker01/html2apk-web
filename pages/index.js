@@ -56,6 +56,8 @@ export default function Home() {
   const [history, setHistory]         = useState([]);
   const [showHistory, setShowHistory] = useState(false);
   const [rateLimitMsg, setRateLimitMsg] = useState('');
+  const [maliciousInfo, setMaliciousInfo]   = useState(null); // {findings, hours, offenses, blockedUntil}
+  const [blockCountdown, setBlockCountdown] = useState('');
 
 
   const fileRef = useRef();
@@ -63,6 +65,21 @@ export default function Home() {
   const ksRef   = useRef();
 
   useEffect(() => { setHistory(loadHistory()); }, []);
+
+  useEffect(() => {
+    if (!maliciousInfo?.blockedUntil) return;
+    const tick = () => {
+      const left = maliciousInfo.blockedUntil - Date.now();
+      if (left <= 0) { setBlockCountdown(''); setMaliciousInfo(null); return; }
+      const h = Math.floor(left / 3600000);
+      const m = Math.floor((left % 3600000) / 60000);
+      const s = Math.floor((left % 60000) / 1000);
+      setBlockCountdown(`${h}h ${m}m ${s}s`);
+    };
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [maliciousInfo]);
 
   function addLog(msg) { setLog(l => l + '\n' + msg); }
 
@@ -95,6 +112,7 @@ export default function Home() {
     setLog('⏳ Sending to build server...');
     setDlUrl(null);
     setRateLimitMsg('');
+    setMaliciousInfo(null);
 
     try {
       let iconBase64 = null;
@@ -133,6 +151,12 @@ export default function Home() {
       });
       const buildData = await buildRes.json();
 
+      if (buildRes.status === 403 && buildData.malicious) {
+        setMaliciousInfo(buildData);
+        setStage('error');
+        addLog(`🚨 MALICIOUS CODE DETECTED\n${(buildData.findings||[]).map(f=>'• '+f).join('\n')}`);
+        return;
+      }
       if (buildRes.status === 429) {
         setRateLimitMsg(buildData.error);
         setStage('error');
@@ -277,6 +301,10 @@ export default function Home() {
         .btn-build:hover:not(:disabled){opacity:.85}
         .btn-build:disabled{opacity:.4;cursor:not-allowed}
         .rate-limit-banner{background:rgba(245,158,11,.1);border:1px solid var(--warn);border-radius:8px;padding:12px 16px;margin-top:12px;font-family:var(--mono);font-size:12px;color:var(--warn);display:flex;align-items:center;gap:8px}
+        .malicious-banner{background:rgba(255,85,85,.08);border:2px solid var(--error);border-radius:10px;padding:18px 20px;margin-top:12px;font-family:var(--mono);font-size:12px;color:var(--error)}
+        .malicious-banner h3{font-size:14px;font-weight:700;margin-bottom:8px;letter-spacing:.04em}
+        .malicious-banner ul{margin:8px 0 12px 16px;line-height:1.8}
+        .malicious-banner .countdown{margin-top:10px;background:rgba(255,85,85,.1);border-radius:6px;padding:8px 12px;color:#ff8888;font-size:13px;text-align:center}
         .progress-wrap{margin-top:16px;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px 20px}
         .progress-label{font-family:var(--mono);font-size:12px;color:var(--muted);margin-bottom:10px;display:flex;justify-content:space-between}
         .progress-track{background:var(--border);border-radius:99px;height:6px;overflow:hidden}
@@ -497,6 +525,20 @@ export default function Home() {
         {/* Rate limit warning */}
         {rateLimitMsg && (
           <div className="rate-limit-banner">⛔ {rateLimitMsg}</div>
+        )}
+
+        {/* Malicious code banner */}
+        {maliciousInfo && (
+          <div className="malicious-banner">
+            <h3>🚨 YOUR UPLOADED CODE CONTAINS MALICIOUS CODE</h3>
+            <ul>
+              {(maliciousInfo.findings || []).map((f, i) => <li key={i}>{f}</li>)}
+            </ul>
+            <div>Build blocked for <strong>{maliciousInfo.hours} hour(s)</strong> (offense #{maliciousInfo.offenses}). Remove the malicious code and try again after the timeout.</div>
+            {blockCountdown && (
+              <div className="countdown">⏱ Time remaining: {blockCountdown}</div>
+            )}
+          </div>
         )}
 
         {/* Progress */}
