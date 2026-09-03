@@ -175,9 +175,9 @@ else:
 pkg_path = WORK_DIR / "java" / Path(*PACKAGE_NAME.split("."))
 pkg_path.mkdir(parents=True, exist_ok=True)
 
-html_escaped = (html_content
-    .replace("\\", "\\\\").replace('"', '\\"')
-    .replace("\n", "\\n\" +\n            \"").replace("\r", ""))
+# Write HTML to assets — avoids Java 65535-byte string literal limit
+(ASSETS_DIR / "index.html").write_bytes(html_content.encode("utf-8"))
+print("\u0001 HTML written to assets/index.html")
 
 (pkg_path / "MainActivity.java").write_text(textwrap.dedent(f"""\
     package {PACKAGE_NAME};
@@ -238,8 +238,7 @@ html_escaped = (html_content
             }});
             // Request runtime permissions on launch
             requestRuntimePerms();
-            String html = "{html_escaped}";
-            wv.loadDataWithBaseURL("file:///android_asset/", html, "text/html", "UTF-8", null);
+            wv.loadUrl(\"file:///android_asset/index.html\");
         }}
         private void requestRuntimePerms() {{
             if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return;
@@ -433,4 +432,5 @@ else:
         print(f"✅ APK signed: {final_out}")
 
 print(f"\n✅ Done: {final_out}")
+
 
