@@ -29,8 +29,11 @@ WORK_DIR.mkdir(exist_ok=True)
 
 def run(cmd):
     print(f"$ {' '.join(str(c) for c in cmd)}")
-    r = subprocess.run(cmd, check=True, capture_output=True, text=True)
+    r = subprocess.run(cmd, capture_output=True, text=True)
     if r.stdout: print(r.stdout)
+    if r.returncode != 0:
+        if r.stderr: print("STDERR:", r.stderr)
+        raise subprocess.CalledProcessError(r.returncode, cmd, r.stdout, r.stderr)
     return r
 
 # ── 1. Manifest ───────────────────────────────────────────────────────────────
@@ -430,3 +433,4 @@ else:
         print(f"✅ APK signed: {final_out}")
 
 print(f"\n✅ Done: {final_out}")
+
