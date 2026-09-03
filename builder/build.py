@@ -382,7 +382,11 @@ if BUILD_TYPE == "aab":
     with zipfile.ZipFile(base_zip, 'w', zipfile.ZIP_DEFLATED) as z:
         for f in base_dir.rglob("*"):
             if f.is_file():
-                z.write(f, f.relative_to(base_dir))
+                arc = f.relative_to(base_dir)
+                # bundletool requires manifest at manifest/AndroidManifest.xml
+                if str(arc) == "AndroidManifest.xml":
+                    arc = Path("manifest/AndroidManifest.xml")
+                z.write(f, arc)
 
     unsigned_aab = WORK_DIR / "unsigned.aab"
     run(["bundletool", "build-bundle",
@@ -432,5 +436,6 @@ else:
         print(f"✅ APK signed: {final_out}")
 
 print(f"\n✅ Done: {final_out}")
+
 
 
