@@ -23,7 +23,7 @@ on:
         required: true
         default: 'apk'
       permissions:
-        description: 'Comma-separated permissions e.g. camera,microphone,location_fine'
+        description: 'Comma-separated permissions'
         required: false
         default: ''
       signing:
@@ -65,6 +65,13 @@ jobs:
       - name: Install build tools
         run: sdkmanager "build-tools;34.0.0" "platforms;android-34"
 
+      - name: Install bundletool
+        run: |
+          wget -q https://github.com/google/bundletool/releases/download/1.15.6/bundletool-all-1.15.6.jar -O /usr/local/bin/bundletool.jar
+          printf '#!/bin/bash\njava -jar /usr/local/bin/bundletool.jar "$@"\n' | sudo tee /usr/local/bin/bundletool > /dev/null
+          sudo chmod +x /usr/local/bin/bundletool
+          bundletool version
+
       - name: Fetch HTML
         run: |
           mkdir -p build_workspace
@@ -85,12 +92,6 @@ jobs:
 
       - name: Install Python deps
         run: pip install Pillow --break-system-packages
-
-      - name: Install bundletool
-        run: |
-          wget -q https://github.com/google/bundletool/releases/download/1.15.6/bundletool-all-1.15.6.jar -O /usr/local/bin/bundletool.jar
-          echo '#!/bin/bash\njava -jar /usr/local/bin/bundletool.jar "$@"' | sudo tee /usr/local/bin/bundletool > /dev/null
-          sudo chmod +x /usr/local/bin/bundletool
 
       - name: Copy builder
         run: cp builder/build.py build_workspace/build.py
