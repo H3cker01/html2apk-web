@@ -12,7 +12,11 @@ KS_ALIAS     = os.environ.get("KS_ALIAS", "mykey")
 KS_PASS      = os.environ.get("KS_PASS", "")
 KS_KEY_PASS  = os.environ.get("KS_KEY_PASS", "")
 PERMISSIONS  = os.environ.get("PERMISSIONS", "").split(",")  # comma-separated list
-ADDITIONAL_FILES_JSON = os.environ.get("ADDITIONAL_FILES", "[]")  # JSON [{name,base64}]
+_af_path = os.environ.get("ADDITIONAL_FILES_JSON_PATH", "")
+if _af_path and Path(_af_path).exists():
+    ADDITIONAL_FILES_JSON = Path(_af_path).read_text(encoding="utf-8")
+else:
+    ADDITIONAL_FILES_JSON = os.environ.get("ADDITIONAL_FILES", "[]")  # JSON [{name,base64}]
 
 AAPT2     = BUILD_TOOLS / "aapt2"
 D8        = BUILD_TOOLS / "d8"
