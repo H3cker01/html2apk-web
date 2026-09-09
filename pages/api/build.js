@@ -1,4 +1,4 @@
-export const config = { api: { bodyParser: { sizeLimit: '10mb' } } };
+export const config = { api: { bodyParser: { sizeLimit: '20mb' } } };
 
 // ── In-memory rate limiter (per Vercel serverless instance) ──────────────────
 const rateLimitMap = new Map(); // ip -> { count, windowStart, building }
@@ -49,6 +49,7 @@ export default async function handler(req, res) {
     signing = 'debug',
     ksAlias, ksPass, ksKeyPass,
     ksBase64, ksFilePass, ksFileAlias, ksFileKeyPass,
+    extraFiles = [],
   } = req.body;
 
   if (!html) return res.status(400).json({ error: 'html is required' });
@@ -106,6 +107,11 @@ export default async function handler(req, res) {
     const gistFiles = { 'index.html': { content: html } };
     if (iconBase64) gistFiles['icon.png.b64'] = { content: iconBase64 };
 
+    // Bundle extra files as a JSON manifest in the gist
+    if (Array.isArray(extraFiles) && extraFiles.length > 0) {
+      gistFiles['extra_files.json'] = { content: JSON.stringify(extraFiles) };
+    }
+
     const gistRes = await fetch('https://api.github.com/gists', {
       method: 'POST',
       headers: ghHeaders,
@@ -121,20 +127,24 @@ export default async function handler(req, res) {
     const gistData = await gistRes.json();
     const htmlUrl  = gistData.files['index.html'].raw_url;
     const iconUrl  = iconBase64 ? gistData.files['icon.png.b64'].raw_url : '';
+    const extraFilesUrl = (Array.isArray(extraFiles) && extraFiles.length > 0)
+      ? gistData.files['extra_files.json'].raw_url
+      : '';
 
     const inputs = {
-      html_url:     htmlUrl,
-      icon_url:     iconUrl,
-      app_name:     appName,
-      package_name: packageName,
-      run_id_token: token,
-      build_type:   buildType,
-      permissions:  Array.isArray(permissions) ? permissions.join(',') : '',
+      html_url:          htmlUrl,
+      icon_url:          iconUrl,
+      app_name:          appName,
+      package_name:      packageName,
+      run_id_token:      token,
+      build_type:        buildType,
+      permissions:       Array.isArray(permissions) ? permissions.join(',') : '',
       signing,
       ks_alias:    signing === 'generate' ? (ksAlias || 'mykey') : (signing === 'upload' ? ksFileAlias : ''),
       ks_pass:     signing === 'generate' ? ksPass    : (signing === 'upload' ? ksFilePass    : ''),
       ks_key_pass: signing === 'generate' ? ksKeyPass : (signing === 'upload' ? ksFileKeyPass : ''),
       ks_base64:   signing === 'upload'   ? ksBase64  : '',
+      extra_files_url:   extraFilesUrl,
     };
 
     const triggerRes = await fetch(
