@@ -46,6 +46,7 @@ export default function Home() {
   const [ksFilePass, setKsFilePass]   = useState('');
   const [ksFileAlias, setKsFileAlias] = useState('');
   const [ksFileKeyPass, setKsFileKeyPass] = useState('');
+  const [extraFiles, setExtraFiles]   = useState([]); // [{name, base64}]
   const [stage, setStage]             = useState('idle');
   const [log, setLog]                 = useState('');
   const [dlUrl, setDlUrl]             = useState(null);
@@ -56,13 +57,13 @@ export default function Home() {
   const [history, setHistory]         = useState([]);
   const [showHistory, setShowHistory] = useState(false);
   const [rateLimitMsg, setRateLimitMsg] = useState('');
-  const [maliciousInfo, setMaliciousInfo]   = useState(null); // {findings, hours, offenses, blockedUntil}
+  const [maliciousInfo, setMaliciousInfo]   = useState(null);
   const [blockCountdown, setBlockCountdown] = useState('');
 
-
-  const fileRef = useRef();
-  const iconRef = useRef();
-  const ksRef   = useRef();
+  const fileRef      = useRef();
+  const iconRef      = useRef();
+  const ksRef        = useRef();
+  const extraFileRef = useRef();
 
   useEffect(() => { setHistory(loadHistory()); }, []);
 
@@ -91,11 +92,19 @@ export default function Home() {
     reader.readAsDataURL(file);
   }
 
-
-  function handleBuildClick() {
-    handleBuild();
+  async function handleAddExtraFiles(files) {
+    const newEntries = await Promise.all(Array.from(files).map(f => new Promise(resolve => {
+      const r = new FileReader();
+      r.onload = e => resolve({ name: f.name, base64: e.target.result.split(',')[1] });
+      r.readAsDataURL(f);
+    })));
+    setExtraFiles(prev => {
+      const existingNames = new Set(prev.map(e => e.name));
+      return [...prev, ...newEntries.filter(e => !existingNames.has(e.name))];
+    });
   }
 
+  function handleBuildClick() { handleBuild(); }
 
   async function handleBuild() {
     const html = inputMode === 'file' ? await htmlFile?.text() : htmlText;
@@ -142,6 +151,7 @@ export default function Home() {
         ksFilePass:   signing === 'upload'   ? ksFilePass   : undefined,
         ksFileAlias:  signing === 'upload'   ? ksFileAlias  : undefined,
         ksFileKeyPass:signing === 'upload'   ? ksFileKeyPass: undefined,
+        extraFiles:   extraFiles.length > 0  ? extraFiles   : undefined,
       };
 
       const buildRes = await fetch('/api/build', {
@@ -194,7 +204,6 @@ export default function Home() {
             setDlUrl(url);
             setDlName(name);
             setStage('done');
-            // Save to history
             const newHistory = addHistoryEntry({
               appName: _appName,
               pkgName: _pkgName,
@@ -297,6 +306,14 @@ export default function Home() {
         .sign-opt-title{font-family:var(--mono);font-size:12px;font-weight:700;color:var(--text);margin-bottom:4px}
         .sign-opt-desc{font-size:11px;color:var(--muted);line-height:1.4}
         .sign-fields{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:16px;margin-top:4px}
+        .extra-files-drop{border:2px dashed var(--border);border-radius:10px;padding:24px;text-align:center;cursor:pointer;transition:border-color .15s;margin-bottom:12px}
+        .extra-files-drop:hover{border-color:var(--accent)}
+        .extra-files-drop p{color:var(--muted);font-size:13px}
+        .extra-file-list{display:flex;flex-direction:column;gap:6px;margin-bottom:8px}
+        .extra-file-item{display:flex;align-items:center;justify-content:space-between;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:8px 12px}
+        .extra-file-name{font-family:var(--mono);font-size:12px;color:var(--accent2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:80%}
+        .extra-file-remove{background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px;line-height:1;padding:0 4px;transition:color .15s}
+        .extra-file-remove:hover{color:var(--error)}
         .btn-build{width:100%;padding:14px;border-radius:10px;border:none;background:var(--accent);color:#fff;font-family:var(--mono);font-size:14px;font-weight:700;letter-spacing:.04em;cursor:pointer;transition:opacity .15s;margin-top:8px}
         .btn-build:hover:not(:disabled){opacity:.85}
         .btn-build:disabled{opacity:.4;cursor:not-allowed}
@@ -516,6 +533,45 @@ export default function Home() {
           )}
         </div>
 
+        {/* 06 Extra Files */}
+        <div className="card">
+          <div className="card-title">06 — Extra Files <span style={{fontWeight:400,textTransform:'none',letterSpacing:0}}>(optional)</span></div>
+          <p style={{fontSize:12,color:'var(--muted)',fontFamily:'var(--mono)',marginBottom:12,lineHeight:1.6}}>
+            Bundle JS, CSS, images, fonts, JSON, audio into the APK.<br/>
+            Access via: <code style={{color:'var(--accent2)'}}>file:///android_asset/&lt;filename&gt;</code>
+          </p>
+          {extraFiles.length > 0 && (
+            <div className="extra-file-list">
+              {extraFiles.map((f, i) => (
+                <div key={i} className="extra-file-item">
+                  <span className="extra-file-name">📄 {f.name}</span>
+                  <button className="extra-file-remove" onClick={() => setExtraFiles(prev => prev.filter((_, j) => j !== i))}>✕</button>
+                </div>
+              ))}
+            </div>
+          )}
+          <div
+            className="extra-files-drop"
+            onClick={() => extraFileRef.current.click()}
+            onDragOver={e => e.preventDefault()}
+            onDrop={e => { e.preventDefault(); handleAddExtraFiles(e.dataTransfer.files); }}
+          >
+            <input
+              ref={extraFileRef}
+              type="file"
+              multiple
+              style={{display:'none'}}
+              onChange={e => handleAddExtraFiles(e.target.files)}
+            />
+            <p>Click or drag &amp; drop files to bundle</p>
+          </div>
+          {extraFiles.length > 0 && (
+            <button onClick={() => setExtraFiles([])} style={{background:'none',border:'none',color:'var(--muted)',fontFamily:'var(--mono)',fontSize:11,cursor:'pointer',padding:0,marginTop:4}}>
+              Clear all
+            </button>
+          )}
+        </div>
+
         {/* Build Button */}
         <button className="btn-build" disabled={stage==='building'} onClick={handleBuildClick}>
           {stage==='building' ? '⚙ Building...' : '▶ Build APK'}
@@ -563,5 +619,4 @@ export default function Home() {
     </>
   );
 }
-
 
