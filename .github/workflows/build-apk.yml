@@ -43,6 +43,10 @@ on:
         description: 'Base64 encoded keystore for upload mode'
         required: false
         default: ''
+      extra_files_url:
+        description: 'Raw URL to extra_files.json (optional)'
+        required: false
+        default: ''
 
 jobs:
   build:
@@ -85,6 +89,12 @@ jobs:
           base64 -d build_workspace/icon.b64 > build_workspace/icon.png
           echo "Icon fetched"
 
+      - name: Fetch extra files manifest
+        if: ${{ github.event.inputs.extra_files_url != '' }}
+        run: |
+          curl -sL "${{ github.event.inputs.extra_files_url }}" -o build_workspace/extra_files.json
+          echo "Extra files manifest fetched ($(wc -c < build_workspace/extra_files.json) bytes)"
+
       - name: Decode uploaded keystore
         if: ${{ github.event.inputs.signing == 'upload' && github.event.inputs.ks_base64 != '' }}
         run: |
@@ -98,16 +108,17 @@ jobs:
 
       - name: Run build
         env:
-          APP_NAME:     ${{ github.event.inputs.app_name }}
-          PACKAGE_NAME: ${{ github.event.inputs.package_name }}
-          BUILD_TOOLS:  ${{ env.ANDROID_SDK_ROOT }}/build-tools/34.0.0
-          PLATFORM_JAR: ${{ env.ANDROID_SDK_ROOT }}/platforms/android-34/android.jar
-          BUILD_TYPE:   ${{ github.event.inputs.build_type }}
-          PERMISSIONS:  ${{ github.event.inputs.permissions }}
-          SIGNING:      ${{ github.event.inputs.signing }}
-          KS_ALIAS:     ${{ github.event.inputs.ks_alias }}
-          KS_PASS:      ${{ github.event.inputs.ks_pass }}
-          KS_KEY_PASS:  ${{ github.event.inputs.ks_key_pass }}
+          APP_NAME:             ${{ github.event.inputs.app_name }}
+          PACKAGE_NAME:         ${{ github.event.inputs.package_name }}
+          BUILD_TOOLS:          ${{ env.ANDROID_SDK_ROOT }}/build-tools/34.0.0
+          PLATFORM_JAR:         ${{ env.ANDROID_SDK_ROOT }}/platforms/android-34/android.jar
+          BUILD_TYPE:           ${{ github.event.inputs.build_type }}
+          PERMISSIONS:          ${{ github.event.inputs.permissions }}
+          SIGNING:              ${{ github.event.inputs.signing }}
+          KS_ALIAS:             ${{ github.event.inputs.ks_alias }}
+          KS_PASS:              ${{ github.event.inputs.ks_pass }}
+          KS_KEY_PASS:          ${{ github.event.inputs.ks_key_pass }}
+          ADDITIONAL_FILES_JSON_PATH: build_workspace/extra_files.json
         run: cd build_workspace && python build.py
 
       - name: Upload APK
