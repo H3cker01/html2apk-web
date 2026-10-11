@@ -52,6 +52,8 @@ jobs:
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout repo
@@ -132,10 +134,12 @@ jobs:
         run: |
           git config user.email "ci@html2apk.dev"
           git config user.name "CI"
+          git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}
           mkdir -p build_logs
           cp build_workspace/build_log.txt build_logs/latest.txt || echo "no log" > build_logs/latest.txt
           git add build_logs/latest.txt
           git diff --cached --quiet || git commit -m "ci: build log [skip ci]"
+          git pull --rebase origin main
           git push
 
       - name: Upload APK
