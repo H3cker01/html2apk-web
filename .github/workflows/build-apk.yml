@@ -127,13 +127,16 @@ jobs:
           ADDITIONAL_FILES_JSON_PATH: build_workspace/extra_files.json
         run: cd build_workspace && python -u build.py 2>&1 | tee build_log.txt; exit ${PIPESTATUS[0]}
 
-      - name: Upload build log
+      - name: Push build log to repo
         if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: build-log-${{ github.event.inputs.run_id_token }}
-          path: build_workspace/build_log.txt
-          retention-days: 1
+        run: |
+          git config user.email "ci@html2apk.dev"
+          git config user.name "CI"
+          mkdir -p build_logs
+          cp build_workspace/build_log.txt build_logs/latest.txt || echo "no log" > build_logs/latest.txt
+          git add build_logs/latest.txt
+          git diff --cached --quiet || git commit -m "ci: build log [skip ci]"
+          git push
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
