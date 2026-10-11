@@ -4,6 +4,22 @@ from pathlib import Path
 
 APP_NAME     = os.environ.get("APP_NAME", "MyApp")
 PACKAGE_NAME = os.environ.get("PACKAGE_NAME", "com.example.myapp")
+
+# Validate package name — reject Java reserved keywords as segments
+_JAVA_RESERVED = {
+    "abstract","assert","boolean","break","byte","case","catch","char","class",
+    "const","continue","default","do","double","else","enum","extends","final",
+    "finally","float","for","goto","if","implements","import","instanceof","int",
+    "interface","long","native","new","package","private","protected","public",
+    "return","short","static","strictfp","super","switch","synchronized","this",
+    "throw","throws","transient","try","void","volatile","while"
+}
+_pkg_segments = PACKAGE_NAME.split(".")
+_bad = [s for s in _pkg_segments if s in _JAVA_RESERVED or not re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', s)]
+if _bad:
+    print(f"ERROR: Invalid package name '{PACKAGE_NAME}'. "
+          f"Segment(s) {_bad} are Java reserved keywords or contain invalid characters.")
+    raise SystemExit(1)
 BUILD_TOOLS  = Path(os.environ.get("BUILD_TOOLS", ""))
 PLATFORM_JAR = Path(os.environ.get("PLATFORM_JAR", ""))
 SIGNING      = os.environ.get("SIGNING", "debug")
