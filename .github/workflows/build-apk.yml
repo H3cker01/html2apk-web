@@ -125,7 +125,15 @@ jobs:
           KS_PASS:              ${{ github.event.inputs.ks_pass }}
           KS_KEY_PASS:          ${{ github.event.inputs.ks_key_pass }}
           ADDITIONAL_FILES_JSON_PATH: build_workspace/extra_files.json
-        run: cd build_workspace && python -u build.py 2>&1
+        run: cd build_workspace && python -u build.py 2>&1 | tee build_log.txt; exit ${PIPESTATUS[0]}
+
+      - name: Upload build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log-${{ github.event.inputs.run_id_token }}
+          path: build_workspace/build_log.txt
+          retention-days: 1
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
