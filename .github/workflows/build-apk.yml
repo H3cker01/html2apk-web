@@ -1,152 +1,65 @@
-name: Build APK
+name: build-apk
 
 on:
   workflow_dispatch:
     inputs:
-      html_url:
-        description: 'Raw URL to HTML file'
+      build_id:
         required: true
-      icon_url:
-        description: 'Raw URL to icon base64 file (optional)'
-        required: false
-        default: ''
       app_name:
         required: true
-        default: 'MyApp'
-      package_name:
+      package_id:
         required: true
-        default: 'com.example.myapp'
-      run_id_token:
-        required: true
-      build_type:
-        description: 'apk | aab'
-        required: true
-        default: 'apk'
-      permissions:
-        description: 'Comma-separated permissions'
+      source_url:
         required: false
-        default: ''
-      signing:
-        description: 'unsigned | debug | generate | upload'
-        required: true
-        default: 'debug'
-      ks_alias:
+        default: ""
+      source_html:
         required: false
-        default: ''
-      ks_pass:
-        required: false
-        default: ''
-      ks_key_pass:
-        required: false
-        default: ''
-      ks_base64:
-        description: 'Base64 encoded keystore for upload mode'
-        required: false
-        default: ''
-      extra_files_url:
-        description: 'Raw URL to extra_files.json (optional)'
-        required: false
-        default: ''
+        default: ""
 
 jobs:
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    permissions:
-      contents: write
-
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Set up Java 17
-        uses: actions/setup-java@v5
+      - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '17'
+          java-version: "17"
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v4
+      - uses: android-actions/setup-android@v3
 
-      - name: Install build tools
-        run: |
-          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
-          echo "ANDROID_HOME=$ANDROID_HOME"
-          SDK="${ANDROID_SDK_ROOT:-$ANDROID_HOME}"
-          echo "Using SDK: $SDK"
-          sdkmanager "build-tools;34.0.0" "platforms;android-34"
-          echo "ANDROID_SDK_ROOT=$SDK" >> $GITHUB_ENV
-
-      - name: Install bundletool
-        run: |
-          wget -q https://github.com/google/bundletool/releases/download/1.15.6/bundletool-all-1.15.6.jar -O /usr/local/bin/bundletool.jar
-          printf '#!/bin/bash\njava -jar /usr/local/bin/bundletool.jar "$@"\n' | sudo tee /usr/local/bin/bundletool > /dev/null
-          sudo chmod +x /usr/local/bin/bundletool
-          bundletool version
-
-      - name: Fetch HTML
-        run: |
-          mkdir -p build_workspace
-          curl -sL "${{ github.event.inputs.html_url }}" -o build_workspace/index.html
-          echo "HTML: $(wc -c < build_workspace/index.html) bytes"
-
-      - name: Fetch and decode icon
-        if: ${{ github.event.inputs.icon_url != '' }}
-        run: |
-          curl -sL "${{ github.event.inputs.icon_url }}" -o build_workspace/icon.b64
-          base64 -d build_workspace/icon.b64 > build_workspace/icon.png
-          echo "Icon fetched"
-
-      - name: Fetch extra files manifest
-        if: ${{ github.event.inputs.extra_files_url != '' }}
-        run: |
-          curl -sL "${{ github.event.inputs.extra_files_url }}" -o build_workspace/extra_files.json
-          echo "Extra files manifest fetched ($(wc -c < build_workspace/extra_files.json) bytes)"
-
-      - name: Decode uploaded keystore
-        if: ${{ github.event.inputs.signing == 'upload' && github.event.inputs.ks_base64 != '' }}
-        run: |
-          echo "${{ github.event.inputs.ks_base64 }}" | base64 -d > build_workspace/upload.keystore
-
-      - name: Install Python deps
-        run: pip install Pillow --break-system-packages
-
-      - name: Copy builder
-        run: cp builder/build.py build_workspace/build.py
-
-      - name: Run build
+      - name: Prepare web content
         env:
-          APP_NAME:             ${{ github.event.inputs.app_name }}
-          PACKAGE_NAME:         ${{ github.event.inputs.package_name }}
-          BUILD_TOOLS:          ${{ env.ANDROID_SDK_ROOT }}/build-tools/34.0.0
-          PLATFORM_JAR:         ${{ env.ANDROID_SDK_ROOT }}/platforms/android-34/android.jar
-          BUILD_TYPE:           ${{ github.event.inputs.build_type }}
-          PERMISSIONS:          ${{ github.event.inputs.permissions }}
-          SIGNING:              ${{ github.event.inputs.signing }}
-          KS_ALIAS:             ${{ github.event.inputs.ks_alias }}
-          KS_PASS:              ${{ github.event.inputs.ks_pass }}
-          KS_KEY_PASS:          ${{ github.event.inputs.ks_key_pass }}
-          ADDITIONAL_FILES_JSON_PATH: build_workspace/extra_files.json
-        run: cd build_workspace && python -u build.py 2>&1 | tee build_log.txt; exit ${PIPESTATUS[0]}
-
-      - name: Push build log to repo
-        if: always()
+          SOURCE_HTML: ${{ inputs.source_html }}
+          SOURCE_URL: ${{ inputs.source_url }}
         run: |
-          git config user.email "ci@html2apk.dev"
-          git config user.name "CI"
-          git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}
-          mkdir -p build_logs
-          cp build_workspace/build_log.txt build_logs/latest.txt || echo "no log" > build_logs/latest.txt
-          git add build_logs/latest.txt
-          git diff --cached --quiet || git commit -m "ci: build log [skip ci]"
-          git pull --rebase origin main
-          git push
+          mkdir -p web
+          if [ -n "$SOURCE_HTML" ]; then
+            printf '%s' "$SOURCE_HTML" > web/index.html
+          else
+            echo "<html><body><script>location.href='$SOURCE_URL'</script></body></html>" > web/index.html
+          fi
 
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
+      - name: Generate Android project
+        env:
+          APP_NAME: ${{ inputs.app_name }}
+          PACKAGE_ID: ${{ inputs.package_id }}
+        run: |
+          python3 scripts/generate_project.py "$APP_NAME" "$PACKAGE_ID" web android-project
+
+      - uses: gradle/actions/setup-gradle@v4
         with:
-          name: app-release-${{ github.event.inputs.run_id_token }}
-          path: |
-            build_workspace/output/*.apk
-            build_workspace/output/*.aab
-          retention-days: 1
+          gradle-version: "8.5"
+
+      - name: Build APK
+        run: |
+          cd android-project
+          gradle assembleDebug --no-daemon
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ inputs.build_id }}
+          path: android-project/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 7
