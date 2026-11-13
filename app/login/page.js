@@ -71,8 +71,7 @@ export default function LoginPage() {
         </button>
       </p>
 
-      <hr />
-      <a href="/api/auth/github"><button style={btn}>Continue with GitHub</button></a>
+
     </main>
   );
 }
