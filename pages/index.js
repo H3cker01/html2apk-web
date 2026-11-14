@@ -616,7 +616,7 @@ export default function Home() {
         )}
 
       </div>
-      <div className="footer"><span>html2apk</span> — built by H3cker01 · <a href="/privacy" style={{color:"var(--accent)",textDecoration:"none"}}>Privacy Policy</a></div>
+      <div className="footer"><span>html2apk</span> — built by H3cker01 · <a href="/privacy" style={{color:"var(--accent)",textDecoration:"none"}}>Privacy Policy</a> · <a href="/dashboard" style={{color:"var(--accent)",textDecoration:"none"}}>API</a></div>
     </>
   );
 }
