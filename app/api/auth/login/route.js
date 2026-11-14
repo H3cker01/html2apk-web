@@ -1,9 +1,10 @@
-import { sql } from "@vercel/postgres";
+import { neon } from "@neondatabase/serverless";
+const sql = neon(process.env.DATABASE_URL);
 import { checkPassword, createSession } from "@/lib/auth";
 
 export async function POST(req) {
   const { email, password } = await req.json();
-  const { rows } = await sql`
+  const rows = await sql`
     SELECT id, password_hash, email_verified FROM users WHERE email = ${email}`;
   const user = rows[0];
 

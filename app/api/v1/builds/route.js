@@ -1,4 +1,5 @@
-import { sql } from "@vercel/postgres";
+import { neon } from "@neondatabase/serverless";
+const sql = neon(process.env.DATABASE_URL);
 import crypto from "crypto";
 import { userFromApiKey } from "@/lib/auth";
 
@@ -9,7 +10,7 @@ export async function POST(req) {
   const user = await userFromApiKey(req.headers.get("authorization"));
   if (!user) return Response.json({ error: "Invalid API key" }, { status: 401 });
 
-  const { rows: count } = await sql`
+  const count = await sql`
     SELECT COUNT(*)::int AS n FROM builds
     WHERE user_id = ${user.id} AND created_at > NOW() - INTERVAL '24 hours'`;
   if (count[0].n >= DAILY_LIMIT) {

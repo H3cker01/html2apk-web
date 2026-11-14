@@ -1,4 +1,3 @@
-"use client";
 import { useState } from "react";
 
 export default function Dashboard() {
@@ -24,17 +23,11 @@ export default function Dashboard() {
         </>
       )}
       {error && <p style={{ color: "crimson" }}>{error}</p>}
-
       <h2>Usage</h2>
-      <pre style={{ background: "#f4f4f4", padding: 12, overflowX: "auto" }}>{`curl -X POST https://YOUR_DOMAIN/api/v1/builds \\
+      <pre style={{ background: "#f4f4f4", padding: 12, overflowX: "auto" }}>{`curl -X POST https://html2apk-web-h3cker01s-projects.vercel.app/api/v1/builds \\
   -H "Authorization: Bearer YOUR_KEY" \\
   -H "Content-Type: application/json" \\
-  -d '{"appName":"My App","packageId":"com.me.app","html":"<h1>Hi</h1>"}'
-
-curl https://YOUR_DOMAIN/api/v1/builds/BUILD_ID -H "Authorization: Bearer YOUR_KEY"
-
-curl -o app.zip https://YOUR_DOMAIN/api/v1/builds/BUILD_ID/apk -H "Authorization: Bearer YOUR_KEY"`}</pre>
-      <p>The download is a zip containing the APK (GitHub artifact format).</p>
+  -d '{"appName":"My App","packageId":"com.me.app","html":"<h1>Hi</h1>"}'`}</pre>
     </main>
   );
 }

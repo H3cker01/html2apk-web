@@ -1,4 +1,5 @@
-import { sql } from "@vercel/postgres";
+import { neon } from "@neondatabase/serverless";
+const sql = neon(process.env.DATABASE_URL);
 import { Resend } from "resend";
 import { hash, hashPassword, newCode } from "@/lib/auth";
 
@@ -10,7 +11,7 @@ export async function POST(req) {
     return Response.json({ error: "Email and 8+ character password required" }, { status: 400 });
   }
 
-  const { rows } = await sql`SELECT email_verified FROM users WHERE email = ${email}`;
+  const rows = await sql`SELECT email_verified FROM users WHERE email = ${email}`;
   if (rows[0]?.email_verified) {
     return Response.json({ error: "Account already exists" }, { status: 409 });
   }

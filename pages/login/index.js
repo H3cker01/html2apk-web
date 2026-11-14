@@ -1,4 +1,3 @@
-"use client";
 import { useState } from "react";
 
 export default function LoginPage() {
@@ -36,10 +35,13 @@ export default function LoginPage() {
     }
   }
 
+  const inp = { display: "block", width: "100%", padding: 10, margin: "8px 0", boxSizing: "border-box" };
+  const btn = { display: "block", width: "100%", padding: 10, margin: "8px 0", cursor: "pointer" };
+  const link = { background: "none", border: "none", color: "#06c", cursor: "pointer", padding: 0 };
+
   return (
     <main style={{ maxWidth: 380, margin: "60px auto", fontFamily: "sans-serif" }}>
       <h1>{mode === "login" ? "Log in" : "Sign up"}</h1>
-
       <form onSubmit={submit}>
         {!(mode === "signup" && step === "code") && (
           <>
@@ -49,7 +51,6 @@ export default function LoginPage() {
               onChange={(e) => setPassword(e.target.value)} required minLength={8} style={inp} />
           </>
         )}
-
         {mode === "signup" && step === "code" && (
           <>
             <p>Enter the 6-digit code sent to {email}.</p>
@@ -57,25 +58,16 @@ export default function LoginPage() {
               onChange={(e) => setCode(e.target.value)} required maxLength={6} style={inp} />
           </>
         )}
-
         {error && <p style={{ color: "crimson" }}>{error}</p>}
         <button type="submit" style={btn}>
           {mode === "login" ? "Log in" : step === "form" ? "Send code" : "Verify"}
         </button>
       </form>
-
       <p>
-        <button onClick={() => { setMode(mode === "login" ? "signup" : "login"); setStep("form"); setError(""); }}
-          style={link}>
+        <button onClick={() => { setMode(mode === "login" ? "signup" : "login"); setStep("form"); setError(""); }} style={link}>
           {mode === "login" ? "No account? Sign up" : "Have an account? Log in"}
         </button>
       </p>
-
-
     </main>
   );
 }
-
-const inp = { display: "block", width: "100%", padding: 10, margin: "8px 0", boxSizing: "border-box" };
-const btn = { display: "block", width: "100%", padding: 10, margin: "8px 0", cursor: "pointer" };
-const link = { background: "none", border: "none", color: "#06c", cursor: "pointer", padding: 0 };

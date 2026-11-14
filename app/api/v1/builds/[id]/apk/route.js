@@ -1,4 +1,5 @@
-import { sql } from "@vercel/postgres";
+import { neon } from "@neondatabase/serverless";
+const sql = neon(process.env.DATABASE_URL);
 import { userFromApiKey } from "@/lib/auth";
 
 const REPO = "H3cker01/html2apk-web";
@@ -12,7 +13,7 @@ export async function GET(req, { params }) {
   const user = await userFromApiKey(req.headers.get("authorization"));
   if (!user) return Response.json({ error: "Invalid API key" }, { status: 401 });
 
-  const { rows } = await sql`SELECT status FROM builds WHERE id = ${params.id} AND user_id = ${user.id}`;
+  const rows = await sql`SELECT status FROM builds WHERE id = ${params.id} AND user_id = ${user.id}`;
   if (!rows[0]) return Response.json({ error: "Not found" }, { status: 404 });
 
   const list = await fetch(
