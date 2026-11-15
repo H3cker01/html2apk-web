@@ -1,9 +1,12 @@
 import { neon } from "@neondatabase/serverless";
 const sql = neon(process.env.DATABASE_URL);
-import { Resend } from "resend";
+import nodemailer from "nodemailer";
 import { hash, hashPassword, newCode } from "@/lib/auth";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+const transporter = nodemailer.createTransport({
+  service: "gmail",
+  auth: { user: process.env.GMAIL_USER, pass: process.env.GMAIL_PASS },
+});
 
 export async function POST(req) {
   const { email, password } = await req.json();
@@ -27,11 +30,11 @@ export async function POST(req) {
     VALUES (${email}, ${hash(code)}, NOW() + INTERVAL '10 minutes')
     ON CONFLICT (email) DO UPDATE SET code_hash = EXCLUDED.code_hash, expires_at = EXCLUDED.expires_at`;
 
-  await resend.emails.send({
-    from: process.env.MAIL_FROM,
+  await transporter.sendMail({
+    from: `html2apk <${process.env.GMAIL_USER}>`,
     to: email,
     subject: "Your html2apk verification code",
-    text: `Your code is ${code}. It expires in 10 minutes.`,
+    text: `Your verification code is: ${code}\n\nExpires in 10 minutes.`,
   });
 
   return Response.json({ ok: true });
