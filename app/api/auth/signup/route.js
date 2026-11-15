@@ -14,9 +14,22 @@ export async function POST(req) {
     return Response.json({ error: "Email and 8+ character password required" }, { status: 400 });
   }
 
-  const rows = await sql`SELECT email_verified FROM users WHERE email = ${email}`;
+  const rows = await sql`SELECT email_verified, created_at FROM users WHERE email = ${email}`;
   if (rows[0]?.email_verified) {
     return Response.json({ error: "Account already exists" }, { status: 409 });
+  }
+
+  // Rate limit: one code per 60 seconds
+  const existing = await sql`
+    SELECT expires_at FROM email_codes WHERE email = ${email}`;
+  if (existing[0]) {
+    const expiresAt = new Date(existing[0].expires_at);
+    const sentAt = new Date(expiresAt.getTime() - 10 * 60 * 1000);
+    const secondsSinceSent = (Date.now() - sentAt.getTime()) / 1000;
+    if (secondsSinceSent < 60) {
+      const wait = Math.ceil(60 - secondsSinceSent);
+      return Response.json({ error: `Wait ${wait}s before requesting another code` }, { status: 429 });
+    }
   }
 
   const passwordHash = await hashPassword(password);

@@ -7,6 +7,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [code, setCode] = useState("");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
   async function post(path, body) {
     const res = await fetch(path, {
@@ -19,6 +20,8 @@ export default function LoginPage() {
 
   async function submit(e) {
     e.preventDefault();
+    if (loading) return;
+    setLoading(true);
     setError("");
     if (mode === "login") {
       const { ok, data } = await post("/api/auth/login", { email, password });
@@ -33,6 +36,7 @@ export default function LoginPage() {
       if (ok) window.location.href = "/dashboard";
       else setError(data.error);
     }
+    setLoading(false);
   }
 
   const inp = { display: "block", width: "100%", padding: 10, margin: "8px 0", boxSizing: "border-box" };
@@ -59,8 +63,8 @@ export default function LoginPage() {
           </>
         )}
         {error && <p style={{ color: "crimson" }}>{error}</p>}
-        <button type="submit" style={btn}>
-          {mode === "login" ? "Log in" : step === "form" ? "Send code" : "Verify"}
+        <button type="submit" style={{...btn, opacity: loading ? 0.6 : 1}} disabled={loading}>
+          {loading ? "Please wait..." : mode === "login" ? "Log in" : step === "form" ? "Send code" : "Verify"}
         </button>
       </form>
       <p>

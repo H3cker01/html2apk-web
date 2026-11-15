@@ -4,11 +4,22 @@ import { createSession, hash } from "@/lib/auth";
 
 export async function POST(req) {
   const { email, code } = await req.json();
-  const rows = await sql`
-    SELECT code_hash FROM email_codes WHERE email = ${email} AND expires_at > NOW()`;
+  if (!email || !code) {
+    return Response.json({ error: "Email and code required" }, { status: 400 });
+  }
 
-  if (!rows[0] || rows[0].code_hash !== hash(String(code))) {
-    return Response.json({ error: "Invalid or expired code" }, { status: 400 });
+  const trimmedCode = String(code).trim();
+  const rows = await sql`
+    SELECT code_hash, expires_at FROM email_codes WHERE email = ${email}`;
+
+  if (!rows[0]) {
+    return Response.json({ error: "No code found for this email" }, { status: 400 });
+  }
+  if (new Date(rows[0].expires_at) < new Date()) {
+    return Response.json({ error: "Code expired, request a new one" }, { status: 400 });
+  }
+  if (rows[0].code_hash !== hash(trimmedCode)) {
+    return Response.json({ error: "Wrong code" }, { status: 400 });
   }
 
   const users = await sql`
