@@ -265,7 +265,15 @@ export default function Home() {
         h1{font-size:clamp(2rem,5vw,3.2rem);font-weight:600;letter-spacing:-.02em;line-height:1.1;margin-bottom:14px}
         h1 span{color:var(--accent)}
         .subtitle{color:var(--muted);font-size:1rem;max-width:440px;margin:0 auto;line-height:1.6}
-        .history-btn{position:absolute;top:24px;right:24px;background:var(--surface);border:1px solid var(--border);color:var(--text);font-family:var(--mono);font-size:12px;padding:8px 14px;border-radius:8px;cursor:pointer;transition:border-color .15s}
+        .topnav{display:flex;align-items:center;justify-content:space-between;padding:12px 24px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--bg);z-index:50}
+        .topnav-left{display:flex;align-items:center;gap:16px}
+        .topnav-logo{font-family:var(--mono);font-weight:700;font-size:15px;color:var(--text);text-decoration:none}
+        .topnav-right{display:flex;align-items:center;gap:8px}
+        .topnav-link{font-family:var(--mono);font-size:12px;color:var(--muted);text-decoration:none;padding:6px 12px;border-radius:6px;border:1px solid transparent;transition:all .15s}
+        .topnav-link:hover{border-color:var(--border);color:var(--text)}
+        .topnav-btn{font-family:var(--mono);font-size:12px;color:#fff;background:var(--accent);padding:7px 14px;border-radius:6px;border:none;cursor:pointer;text-decoration:none;transition:opacity .15s}
+        .topnav-btn:hover{opacity:.85}
+        .history-btn{background:var(--surface);border:1px solid var(--border);color:var(--text);font-family:var(--mono);font-size:12px;padding:7px 14px;border-radius:6px;cursor:pointer;transition:border-color .15s}
         .history-btn:hover{border-color:var(--accent)}
         .history-badge{display:inline-block;background:var(--accent);color:#fff;border-radius:99px;font-size:10px;padding:1px 6px;margin-left:6px;vertical-align:middle}
         .container{max-width:680px;margin:0 auto;padding:48px 24px 80px}
@@ -391,12 +399,21 @@ export default function Home() {
         </div>
       )}
 
+      <nav className="topnav">
+        <div className="topnav-left">
+          <span className="topnav-logo">html2apk</span>
+          <button className="history-btn" onClick={() => setShowHistory(true)}>
+            History
+            {history.length > 0 && <span className="history-badge">{history.length}</span>}
+          </button>
+        </div>
+        <div className="topnav-right">
+          <a href="/dashboard" className="topnav-link">API</a>
+          <a href="/login" className="topnav-btn">Login / Sign up</a>
+        </div>
+      </nav>
+
       <div className="hero">
-        <button className="history-btn" onClick={() => setShowHistory(true)}>
-          History
-          {history.length > 0 && <span className="history-badge">{history.length}</span>}
-        </button>
-        
         <div className="badge">by H3cker01</div>
         <h1>html<span>2</span>apk</h1>
         <p className="subtitle">Drop your HTML file. Get a signed Android APK back. No setup, no Android Studio.</p>
@@ -616,7 +633,7 @@ export default function Home() {
         )}
 
       </div>
-      <div className="footer"><span>html2apk</span> — built by H3cker01 · <a href="/privacy" style={{color:"var(--accent)",textDecoration:"none"}}>Privacy Policy</a> · <a href="/dashboard" style={{color:"var(--accent)",textDecoration:"none"}}>API</a></div>
+      <div className="footer"><span>html2apk</span> — built by H3cker01 · <a href="/privacy" style={{color:"var(--accent)",textDecoration:"none"}}>Privacy Policy</a></div>
     </>
   );
 }
