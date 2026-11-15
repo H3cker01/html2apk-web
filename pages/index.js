@@ -29,6 +29,15 @@ function clearHistory() {
 }
 
 export default function Home() {
+  const [user, setUser] = useState(null);
+  useEffect(() => {
+    fetch("/api/auth/me").then(r => r.json()).then(d => setUser(d.user));
+  }, []);
+  async function logout() {
+    await fetch("/api/auth/logout", { method: "POST" });
+    setUser(null);
+  }
+
   const [appName, setAppName]         = useState('');
   const [pkgName, setPkgName]         = useState('');
   const [htmlFile, setHtmlFile]       = useState(null);
@@ -273,6 +282,9 @@ export default function Home() {
         .topnav-link:hover{border-color:var(--border);color:var(--text)}
         .topnav-btn{font-family:var(--mono);font-size:12px;color:#fff;background:var(--accent);padding:7px 14px;border-radius:6px;border:none;cursor:pointer;text-decoration:none;transition:opacity .15s}
         .topnav-btn:hover{opacity:.85}
+        .topnav-email{font-family:var(--mono);font-size:12px;color:var(--muted);padding:6px 12px}
+        .topnav-logout{font-family:var(--mono);font-size:12px;color:var(--muted);background:transparent;border:1px solid var(--border);padding:7px 14px;border-radius:6px;cursor:pointer;transition:all .15s}
+        .topnav-logout:hover{border-color:var(--accent);color:var(--accent)}
         .history-btn{background:var(--surface);border:1px solid var(--border);color:var(--text);font-family:var(--mono);font-size:12px;padding:7px 14px;border-radius:6px;cursor:pointer;transition:border-color .15s}
         .history-btn:hover{border-color:var(--accent)}
         .history-badge{display:inline-block;background:var(--accent);color:#fff;border-radius:99px;font-size:10px;padding:1px 6px;margin-left:6px;vertical-align:middle}
@@ -409,7 +421,14 @@ export default function Home() {
         </div>
         <div className="topnav-right">
           <a href="/dashboard" className="topnav-link">API</a>
-          <a href="/login" className="topnav-btn">Login / Sign up</a>
+          {user ? (
+            <>
+              <span className="topnav-email">{user.email}</span>
+              <button className="topnav-logout" onClick={logout}>Log out</button>
+            </>
+          ) : (
+            <a href="/login" className="topnav-btn">Login / Sign up</a>
+          )}
         </div>
       </nav>
 

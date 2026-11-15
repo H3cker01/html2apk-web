@@ -1,9 +1,22 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 export default function Dashboard() {
   const [key, setKey] = useState("");
   const [error, setError] = useState("");
   const [copied, setCopied] = useState(false);
+  const [user, setUser] = useState(null);
+
+  useEffect(() => {
+    fetch("/api/auth/me").then(r => r.json()).then(d => {
+      if (!d.user) window.location.href = "/login";
+      else setUser(d.user);
+    });
+  }, []);
+
+  async function logout() {
+    await fetch("/api/auth/logout", { method: "POST" });
+    window.location.href = "/login";
+  }
 
   async function createKey() {
     setError("");
@@ -61,7 +74,10 @@ export default function Dashboard() {
 
       <nav className="nav">
         <a href="/" className="nav-logo">html2apk</a>
-        <a href="/login" className="nav-link">Login / Sign up</a>
+        <div style={{display:"flex",alignItems:"center",gap:12}}>
+          {user && <span style={{fontFamily:"var(--mono)",fontSize:12,color:"var(--muted)"}}>{user.email}</span>}
+          <button onClick={logout} style={{fontFamily:"var(--mono)",fontSize:12,color:"var(--muted)",background:"transparent",border:"1px solid var(--border)",padding:"7px 14px",borderRadius:6,cursor:"pointer"}}>Log out</button>
+        </div>
       </nav>
 
       <div className="container">
