@@ -420,7 +420,7 @@ export default function Home() {
           </button>
         </div>
         <div className="topnav-right">
-          <a href="/dashboard" className="topnav-link">API</a>
+          <a href="/apikeys" className="topnav-link">API</a>
           {user ? (
             <>
               <span className="topnav-email">{user.email}</span>

@@ -26,7 +26,7 @@ export default function LoginPage() {
 
     if (mode === "login") {
       const { ok, data } = await post("/api/auth/login", { email, password });
-      if (ok) window.location.href = "/dashboard";
+      if (ok) window.location.href = "/apikeys";
       else setError(data.error);
 
     } else if (mode === "signup") {
@@ -36,7 +36,7 @@ export default function LoginPage() {
         else setError(data.error);
       } else {
         const { ok, data } = await post("/api/auth/verify", { email, code });
-        if (ok) window.location.href = "/dashboard";
+        if (ok) window.location.href = "/apikeys";
         else setError(data.error);
       }
 
@@ -47,7 +47,7 @@ export default function LoginPage() {
         else setError(data.error);
       } else {
         const { ok, data } = await post("/api/auth/reset", { email, code, password });
-        if (ok) window.location.href = "/dashboard";
+        if (ok) window.location.href = "/apikeys";
         else setError(data.error);
       }
     }
