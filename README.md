@@ -2,15 +2,6 @@
 
 Free HTML → APK converter with a web UI and a public API.
 
-## Setup
-
-1. Create a Vercel Postgres database and run `schema.sql` in it.
-2. Copy `.env.example` values into Vercel project env vars.
-3. Create a GitHub OAuth app. Callback URL: `${APP_URL}/api/auth/github`.
-4. Create a fine-grained GitHub token scoped to this repo (Actions: read/write, Contents: read). Store it as `GITHUB_DISPATCH_TOKEN`.
-5. Verify a sender domain in Resend and set `MAIL_FROM`.
-6. Deploy to Vercel.
-
 ## Repo layout
 
 ```
