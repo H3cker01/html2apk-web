@@ -31,3 +31,6 @@ CREATE TABLE IF NOT EXISTS builds (
   run_id TEXT,
   created_at TIMESTAMP DEFAULT NOW()
 );
+
+-- Run this if upgrading existing schema:
+ALTER TABLE api_keys ADD COLUMN IF NOT EXISTS key_encrypted TEXT;
