@@ -19,7 +19,7 @@ java_dir = os.path.join(app_dir, "src", "main", "java", pkg_path)
 assets_dir = os.path.join(app_dir, "src", "main", "assets", "www")
 res_dir = os.path.join(app_dir, "src", "main", "res")
 
-for d in [java_dir, assets_dir, os.path.join(res_dir, "values")]:
+for d in [java_dir, assets_dir, os.path.join(res_dir, "values"), os.path.join(res_dir, "mipmap-hdpi")]:
     os.makedirs(d, exist_ok=True)
 
 shutil.copytree(web_dir, assets_dir, dirs_exist_ok=True)
@@ -44,6 +44,14 @@ write("build.gradle", """plugins {
 """)
 
 write("gradle.properties", "android.useAndroidX=true\norg.gradle.jvmargs=-Xmx2g\n")
+
+write("local.properties", f"sdk.dir={os.environ.get('ANDROID_HOME', os.path.expanduser('~') + '/android')}\n")
+
+write(os.path.join(res_dir, "values", "strings.xml"), f"""<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">{app_name}</string>
+</resources>
+""")
 
 write(os.path.join(app_dir, "build.gradle"), f"""plugins {{
     id 'com.android.application'
@@ -76,7 +84,7 @@ write(os.path.join(app_dir, "src", "main", "AndroidManifest.xml"), f"""<?xml ver
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.INTERNET" />
     <application
-        android:label="{app_name}"
+        android:label="@string/app_name"
         android:allowBackup="true"
         android:supportsRtl="true"
         android:theme="@android:style/Theme.Material.Light.NoActionBar">
