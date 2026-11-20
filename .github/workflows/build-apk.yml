@@ -58,8 +58,12 @@ jobs:
           APP_NAME: ${{ inputs.app_name }}
           PACKAGE_ID: ${{ inputs.package_id }}
         run: |
-          python3 scripts/generate_project.py "$APP_NAME" "$PACKAGE_ID" web android-project 2>&1
-          echo "Exit code: $?"
+          set -x
+          ls -la
+          ls -la web/ || echo "web dir missing"
+          python3 -v scripts/generate_project.py "$APP_NAME" "$PACKAGE_ID" web android-project 2>&1
+          echo "Exit: $?"
+          ls -la android-project/ || echo "android-project not created"
 
       - uses: gradle/actions/setup-gradle@v4
         with:
