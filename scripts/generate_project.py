@@ -25,7 +25,7 @@ for d in [java_dir, assets_dir, os.path.join(res_dir, "values"), os.path.join(re
 shutil.copytree(web_dir, assets_dir, dirs_exist_ok=True)
 
 def write(path, text):
-    with open(os.path.join(out_dir, path) if not os.path.isabs(path) else path, "w", encoding="utf-8") as f:
+    with open(path if os.path.isabs(path) or path.startswith(out_dir) else os.path.join(out_dir, path), "w", encoding="utf-8") as f:
         f.write(text)
 
 write("settings.gradle", """pluginManagement {
