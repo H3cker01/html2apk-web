@@ -1,5 +1,7 @@
 name: build-apk
 
+run-name: "build-${{ inputs.build_id }}"
+
 on:
   workflow_dispatch:
     inputs:

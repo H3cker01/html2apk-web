@@ -32,17 +32,15 @@ export async function GET(req, context) {
       status = "done";
       await sql`UPDATE builds SET status = 'done' WHERE id = ${id}`;
     } else {
-      // Check if workflow run failed
+      // Check workflow runs and match by build_id input
       const runs = await fetch(
         `https://api.github.com/repos/${REPO}/actions/runs?event=workflow_dispatch&per_page=20`,
         { headers: gh }
       ).then(r => r.json());
 
-      const run = runs.workflow_runs?.find(r =>
-        r.name === "build-apk" && r.conclusion === "failure" &&
-        new Date(r.created_at) > new Date(rows[0].created_at)
-      );
-      if (run) {
+      const matched = runs.workflow_runs?.find(r => r.name === `build-${id}`);
+
+      if (matched?.conclusion === "failure") {
         status = "failed";
         await sql`UPDATE builds SET status = 'failed' WHERE id = ${id}`;
       } else {
